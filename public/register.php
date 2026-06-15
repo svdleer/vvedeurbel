@@ -36,8 +36,8 @@ echo flash_html($message, $type);
         </select>
     </label>
 
-    <label data-channel="telegram">Telegram chat ID
-        <div style="background: #eaf3ff; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; font-size: 0.92rem; color: #1a4678;">
+    <div data-channel="telegram" class="form" style="gap: 10px;">
+        <div style="background: #eaf3ff; border-radius: 12px; padding: 12px 14px; font-size: 0.92rem; color: #1a4678;">
             <strong>Stap 1:</strong>
             <?php
             require_once __DIR__ . '/../src/config.php';
@@ -50,39 +50,37 @@ echo flash_html($message, $type);
                 Open de bot van dit gebouw in Telegram en stuur een bericht (bijv. "hallo").
             <?php endif; ?>
             <br>
-            <strong>Stap 2:</strong> Klik "Auto-detecteer" &rarr; krijg code in Telegram &rarr; voer code in.
+            <strong>Stap 2:</strong> Klik "Auto-detecteer" → krijg code in Telegram → voer code in.
         </div>
 
         <input type="hidden" name="telegram_chat_id" id="telegram_chat_id_field">
-
-        <!-- Zichtbaar veld dat chat ID toont na verificatie -->
-        <input type="text" id="telegram_chat_id_display" placeholder="Wordt ingevuld na verificatie"
+        <input type="text" id="telegram_chat_id_display" placeholder="Chat ID (wordt automatisch ingevuld na verificatie)"
                readonly style="background: #f5f5f5; color: #555; cursor: not-allowed; display: none;">
 
         <div id="telegram-step-detect">
             <button type="button" id="auto-detect-telegram-btn">🔍 Stap 1: Detecteer mijn chat ID</button>
         </div>
 
-        <div id="telegram-step-verify" style="display:none;">
-            <p class="muted" style="margin: 0 0 8px;">
-                Chat ID <strong id="detected-chat-id-label"></strong> gevonden.
-                Er is een 6-cijferige code naar je Telegram gestuurd.
+        <div id="telegram-step-verify" style="display: none; gap: 8px;" class="form">
+            <p class="muted" style="margin: 0;">
+                Chat ID <strong id="detected-chat-id-label"></strong> gevonden —
+                er is een 6-cijferige code naar je Telegram gestuurd.
             </p>
-            <input type="text" id="telegram-verify-code" placeholder="Voer 6-cijferige code in" maxlength="6" inputmode="numeric" style="letter-spacing: 0.25em; text-align: center;">
-            <button type="button" id="verify-telegram-btn" style="margin-top: 8px;">✓ Stap 2: Verifieer code</button>
+            <input type="text" id="telegram-verify-code" placeholder="6-cijferige code" maxlength="6" inputmode="numeric" style="letter-spacing: 0.3em; text-align: center; font-size: 1.3rem;">
+            <button type="button" id="verify-telegram-btn">✓ Stap 2: Verifieer code</button>
         </div>
 
-        <div id="telegram-step-done" style="display:none;">
+        <div id="telegram-step-done" style="display: none;">
             <div class="flash flash-success" style="margin: 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                 <span>✓ Chat ID <strong id="verified-chat-id-label"></strong> geverifieerd!</span>
                 <button type="button" id="telegram-reset-btn" style="width: auto; padding: 6px 14px; font-size: 0.85rem; background: rgba(0,0,0,0.08); color: inherit;">Opnieuw</button>
             </div>
         </div>
 
-        <p class="muted" style="margin-top: 6px; font-size: 0.85rem;">
+        <p class="muted" style="font-size: 0.85rem; margin: 0;">
             <a href="/help-telegram-id.php" target="_blank">Hulp nodig?</a>
         </p>
-    </label>
+    </div>
 
     <label data-channel="sms">Mobiel nummer
         <input type="text" name="phone_number" placeholder="Bijv. +31612345678">

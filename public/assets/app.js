@@ -12,7 +12,7 @@ if (channelSelect) {
             if (!block) {
                 return;
             }
-            block.style.display = block.dataset.channel === value ? 'grid' : 'none';
+            block.style.display = block.dataset.channel === value ? '' : 'none';
         });
     };
 
