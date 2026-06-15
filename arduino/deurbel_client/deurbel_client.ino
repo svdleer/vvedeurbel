@@ -18,6 +18,12 @@ const unsigned long POLL_INTERVAL_MS = 1500;
 WiFiSSLClient sslClient;
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
+String ipToString(const IPAddress &ip) {
+  char buf[20];
+  snprintf(buf, sizeof(buf), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+  return String(buf);
+}
+
 void lcdStatus(const String &line1, const String &line2 = "") {
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -61,7 +67,7 @@ void connectWifi() {
   Serial.println();
   Serial.print("WiFi connected. IP: ");
   Serial.println(WiFi.localIP());
-  lcdStatus("WiFi OK", WiFi.localIP().toString());
+  lcdStatus("WiFi OK", ipToString(WiFi.localIP()));
   printWifiStatus();
 }
 
