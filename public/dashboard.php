@@ -73,6 +73,7 @@ echo flash_html($message, $type);
 
 <div class="link-row">
     <a href="/index.php">Naar belpagina</a>
+    <a href="/test-notification.php">Test notificatie</a>
     <a href="/logout.php">Uitloggen</a>
 </div>
 <?php
