@@ -18,19 +18,12 @@ render_shell_start('Telegram Chat ID vinden', 'Volg deze stappen om je Telegram 
 ?>
 
 <div class="form">
-    <h2>Stap 1: Start de bot</h2>
+    <h2>Stap 1: Open de Telegram bot</h2>
     <p class="muted">
-        Klik op de knop hieronder om de Telegram bot te openen in Telegram.
+        Zoek in Telegram naar de bot van jouw complex/gebouw. 
+        Je beheert zal je de juiste botnaam gegeven hebben.
+        Of vraag het aan je beheerder.
     </p>
-    <?php if ($botToken !== ''): ?>
-        <a href="https://t.me/<?= htmlspecialchars($botToken); ?>" class="btn" target="_blank" rel="noopener">
-            🤖 Open Telegram bot
-        </a>
-    <?php else: ?>
-        <p style="background: #fff3cd; padding: 12px; border-radius: 12px; color: #856404;">
-            Bot token niet geconfigureerd. Neem contact op met beheer.
-        </p>
-    <?php endif; ?>
 
     <h2>Stap 2: Start een chat</h2>
     <p class="muted">
@@ -51,11 +44,11 @@ render_shell_start('Telegram Chat ID vinden', 'Volg deze stappen om je Telegram 
         Vul het getal (zonder minusteken, alleen het getal) in het registratieformulier in.
     </p>
 
-    <h2>Snel alternatief: Auto-detecteer</h2>
+    <h2>Sneller: Auto-detecteer je chat ID</h2>
     <p class="muted">
-        Zorg dat je minstens één bericht naar de bot hebt gestuurd. Klik dan op:
+        Als je al minstens één bericht naar de bot hebt gestuurd, kun je dit gebruiken:
     </p>
-    <button type="button" id="auto-detect-btn" class="btn">🔍 Detecteer mijn chat ID</button>
+    <button type="button" id="auto-detect-btn" class="btn">🔍 Detecteer mijn chat ID automatisch</button>
     <div id="auto-detect-result" style="margin-top: 16px; display: none;"></div>
 </div>
 
