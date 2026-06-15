@@ -42,16 +42,34 @@ try {
     $code = str_pad(preg_replace('/\D/', '', $code), 6, '0', STR_PAD_LEFT);
 
     $stmt = $pdo->prepare(
+        'SELECT id, code, expires_at, verified_at, UTC_TIMESTAMP() as db_now
+         FROM telegram_verifications
+         WHERE chat_id = :chat_id
+         ORDER BY id DESC LIMIT 1'
+    );
+    $stmt->execute(['chat_id' => $chatId]);
+    $latestRow = $stmt->fetch();
+
+    // Debug info — verwijder dit zodra verificatie werkt
+    $debug = [
+        'input_code' => $code,
+        'db_code' => $latestRow['code'] ?? null,
+        'db_expires_at' => $latestRow['expires_at'] ?? null,
+        'db_verified_at' => $latestRow['verified_at'] ?? null,
+        'db_now' => $latestRow['db_now'] ?? null,
+    ];
+
+    $stmt2 = $pdo->prepare(
         'SELECT id FROM telegram_verifications
-         WHERE chat_id = :chat_id AND code = :code AND expires_at > NOW() AND verified_at IS NULL
+         WHERE chat_id = :chat_id AND code = :code AND expires_at > UTC_TIMESTAMP() AND verified_at IS NULL
          LIMIT 1'
     );
-    $stmt->execute(['chat_id' => $chatId, 'code' => $code]);
-    $row = $stmt->fetch();
+    $stmt2->execute(['chat_id' => $chatId, 'code' => $code]);
+    $row = $stmt2->fetch();
 
     if (!$row) {
         http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Ongeldige of verlopen code']);
+        echo json_encode(['ok' => false, 'error' => 'Ongeldige of verlopen code', 'debug' => $debug]);
         exit;
     }
 

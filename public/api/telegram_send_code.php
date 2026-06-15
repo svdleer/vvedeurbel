@@ -73,7 +73,8 @@ try {
         INDEX idx_tv_expires (expires_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-    $expiresAt = (new DateTimeImmutable('+5 minutes'))->format('Y-m-d H:i:s');
+        // GMT/UTC: zodat vergelijking met UTC_TIMESTAMP() in MySQL klopt
+        $expiresAt = gmdate('Y-m-d H:i:s', time() + 300);
 
     // Verwijder oude verificaties voor dit chat ID
     $pdo->prepare('DELETE FROM telegram_verifications WHERE chat_id = :chat_id')->execute(['chat_id' => $chatId]);
