@@ -41,14 +41,14 @@ bool pollCommand(int &commandId, String &token, int &pulseMs) {
 
   int code = http.responseStatusCode();
   if (code != 200) {
-    http.end();
+    http.stop();
     Serial.print("poll status: ");
     Serial.println(code);
     return false;
   }
 
   String body = http.responseBody();
-  http.end();
+  http.stop();
 
   StaticJsonDocument<512> doc;
   DeserializationError err = deserializeJson(doc, body);
@@ -89,7 +89,7 @@ bool ackCommand(int commandId, const String &token) {
   http.endRequest();
 
   int code = http.responseStatusCode();
-  http.end();
+  http.stop();
 
   Serial.print("ack status: ");
   Serial.println(code);
