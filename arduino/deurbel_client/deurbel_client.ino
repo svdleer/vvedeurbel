@@ -13,12 +13,12 @@ const char* DEVICE_KEY = "8921570317:AAGQqk8IRbuEmS76gmE3xkTcySoOvSbuhA8";
 
 const int RELAY_PIN = 5;
 // Parallel LCD pins (pas aan naar jouw bedrading)
-const int LCD_RS = 7;
-const int LCD_EN = 8;
-const int LCD_D4 = 9;
-const int LCD_D5 = 10;
-const int LCD_D6 = 11;
-const int LCD_D7 = 12;
+const int LCD_RS = 8;
+const int LCD_EN = 9;
+const int LCD_D4 = 4;
+const int LCD_D5 = 5;
+const int LCD_D6 = 6;
+const int LCD_D7 = 7;
 
 unsigned long lastPollMs = 0;
 const unsigned long POLL_INTERVAL_MS = 1500;
