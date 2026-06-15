@@ -16,6 +16,28 @@ const unsigned long POLL_INTERVAL_MS = 1500;
 
 WiFiSSLClient sslClient;
 
+void printWifiStatus() {
+  Serial.print("WiFi status: ");
+  Serial.println((int)WiFi.status());
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("RSSI: ");
+  Serial.println(WiFi.RSSI());
+
+  IPAddress hostIp;
+  if (WiFi.hostByName(API_HOST, hostIp)) {
+    Serial.print("DNS ");
+    Serial.print(API_HOST);
+    Serial.print(" -> ");
+    Serial.println(hostIp);
+  } else {
+    Serial.print("DNS lookup failed for ");
+    Serial.println(API_HOST);
+  }
+}
+
 void connectWifi() {
   Serial.print("Connecting to WiFi");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -28,11 +50,17 @@ void connectWifi() {
   Serial.println();
   Serial.print("WiFi connected. IP: ");
   Serial.println(WiFi.localIP());
+  printWifiStatus();
 }
 
 bool pollCommand(int &commandId, String &token, int &pulseMs) {
   HttpClient http(sslClient, API_HOST, API_PORT);
   String path = String(API_BASE_PATH) + "/device_poll.php";
+
+  Serial.print("Polling: https://");
+  Serial.print(API_HOST);
+  Serial.print(path);
+  Serial.println();
 
   http.beginRequest();
   http.get(path);
@@ -41,18 +69,30 @@ bool pollCommand(int &commandId, String &token, int &pulseMs) {
 
   int code = http.responseStatusCode();
   if (code != 200) {
+    String errorBody = http.responseBody();
     http.stop();
     Serial.print("poll status: ");
     Serial.println(code);
+    if (errorBody.length() > 0) {
+      Serial.print("poll body: ");
+      Serial.println(errorBody);
+    }
     return false;
   }
 
   String body = http.responseBody();
   http.stop();
 
+  Serial.print("poll status: ");
+  Serial.println(code);
+  Serial.print("poll body: ");
+  Serial.println(body);
+
   StaticJsonDocument<512> doc;
   DeserializationError err = deserializeJson(doc, body);
   if (err) {
+    Serial.print("JSON parse error: ");
+    Serial.println(err.c_str());
     return false;
   }
 
@@ -120,6 +160,7 @@ void setup() {
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi disconnected, reconnecting...");
     connectWifi();
   }
 
@@ -134,6 +175,8 @@ void loop() {
   int commandId = 0;
   int pulseMs = 1200;
   String token = "";
+
+  Serial.println("poll tick");
 
   if (pollCommand(commandId, token, pulseMs)) {
     Serial.print("Command received: ");
