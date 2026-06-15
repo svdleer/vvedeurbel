@@ -60,5 +60,8 @@ if ($resident) {
 json_response([
     'ok' => true,
     'ring_event_id' => $ringId,
-    'message' => 'Als het huisnummer bekend is, is de melding verstuurd.',
+    'registered' => (bool) $resident,
+    'message' => $resident
+        ? 'Melding verstuurd naar bewoner van huisnummer ' . $houseNumber . '.'
+        : 'Huisnummer ' . $houseNumber . ' is niet aangemeld.',
 ]);

@@ -57,10 +57,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'notify_error' => $notifyResult['ok'] ? null : (($notifyResult['error'] ?? null) ?: json_encode($notifyResult)),
                 'id' => $ringId,
             ]);
+            $message = 'Melding verstuurd naar bewoner van huisnummer ' . $houseNumber . '.';
+            $type = 'success';
+        } else {
+            $message = 'Huisnummer ' . $houseNumber . ' is niet aangemeld.';
+            $type = 'error';
         }
-
-        $message = 'Als het huisnummer bekend is, heeft de bewoner nu een melding ontvangen.';
-        $type = 'success';
     }
 }
 
