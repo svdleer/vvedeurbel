@@ -24,6 +24,7 @@ unsigned long lastPollMs = 0;
 const unsigned long POLL_INTERVAL_MS = 1500;
 unsigned long lastLcdRotateMs = 0;
 bool lcdShowApi = true;
+unsigned long lcdTransientUntilMs = 0;
 
 WiFiSSLClient sslClient;
 LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
@@ -49,6 +50,11 @@ void lcdStatus(const String &line1, const String &line2 = "") {
   lcd.print(line1.substring(0, 16));
   lcd.setCursor(0, 1);
   lcd.print(line2.substring(0, 16));
+}
+
+void lcdTransient(const String &line1, const String &line2 = "", unsigned long durationMs = 1500) {
+  lcdStatus(line1, line2);
+  lcdTransientUntilMs = millis() + durationMs;
 }
 
 String uptimeTs() {
@@ -136,7 +142,7 @@ void printWifiStatus() {
 }
 
 void connectWifi() {
-  lcdStatus("WiFi verbinden", WIFI_SSID);
+  lcdTransient("WiFi verbinden", WIFI_SSID, 2000);
   Serial.print("Connecting to WiFi");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
@@ -149,7 +155,7 @@ void connectWifi() {
   Serial.print("WiFi connected. IP: ");
   Serial.println(WiFi.localIP());
   setApiStatus("ok", "wifi connected");
-  lcdStatus("WiFi OK", ipToString(WiFi.localIP()));
+  lcdTransient("WiFi OK", ipToString(WiFi.localIP()), 2000);
   printWifiStatus();
 }
 
@@ -157,7 +163,6 @@ bool pollCommand(int &commandId, String &token, int &pulseMs) {
   HttpClient http(sslClient, API_HOST, API_PORT);
   String path = String(API_BASE_PATH) + "/device_poll.php";
 
-  lcdStatus("Poll API", API_HOST);
   Serial.print("Polling: https://");
   Serial.print(API_HOST);
   Serial.print(path);
@@ -174,7 +179,7 @@ bool pollCommand(int &commandId, String &token, int &pulseMs) {
     http.stop();
     Serial.print("poll status: ");
     Serial.println(code);
-    lcdStatus("Poll fout", String(code));
+    lcdTransient("Poll fout", String(code), 2000);
     setApiStatus("error", "HTTP " + String(code));
     if (errorBody.length() > 0) {
       Serial.print("poll body: ");
@@ -192,7 +197,6 @@ bool pollCommand(int &commandId, String &token, int &pulseMs) {
   Serial.println(code);
   Serial.print("poll body: ");
   Serial.println(body);
-  lcdStatus("Poll OK", "Geen opdracht");
   setApiStatus("ok", "poll 200");
 
   StaticJsonDocument<512> doc;
@@ -244,7 +248,7 @@ bool ackCommand(int commandId, const String &token) {
 
   Serial.print("ack status: ");
   Serial.println(code);
-  lcdStatus("ACK status", String(code));
+  lcdTransient("ACK status", String(code), 1500);
 
   if (code == 200) {
     setApiStatus("ok", "ack 200");
@@ -260,12 +264,12 @@ void pulseRelay(int pulseMs) {
   Serial.println("Relay pulse start");
   setLastCommand("open", "running", "");
   printRuntimeStatus();
-  lcdStatus("Deur openen", String(pulseMs) + "ms");
+  lcdTransient("Deur openen", String(pulseMs) + "ms", pulseMs + 400);
   digitalWrite(RELAY_PIN, HIGH);
   delay(pulseMs);
   digitalWrite(RELAY_PIN, LOW);
   Serial.println("Relay pulse done");
-  lcdStatus("Deur geopend", "Klaar");
+  lcdTransient("Deur geopend", "Klaar", 2000);
 }
 
 void setup() {
@@ -276,18 +280,20 @@ void setup() {
 
   Serial.println("Doorbell client starting...");
   lcd.begin(16, 2);
-  lcdStatus("Deurbel client", "Opstarten...");
+  lcdTransient("Deurbel client", "Opstarten...", 2000);
 
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
   connectWifi();
+  lastLcdRotateMs = millis();
+  renderSummaryLcd();
 }
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi disconnected, reconnecting...");
     setApiStatus("error", "wifi reconnect");
-    lcdStatus("WiFi weg", "Reconnect...");
+    lcdTransient("WiFi weg", "Reconnect...", 2000);
     connectWifi();
   }
 
@@ -304,14 +310,13 @@ void loop() {
   String token = "";
 
   Serial.println("poll tick");
-  lcdStatus("Wachten...", "Nieuwe poll");
 
   if (pollCommand(commandId, token, pulseMs)) {
     Serial.print("Command received: ");
     Serial.println(commandId);
     setLastCommand(String(commandId), "received", "");
     printRuntimeStatus();
-    lcdStatus("Opdracht", String(commandId));
+    lcdTransient("Opdracht", String(commandId), 1500);
     pulseRelay(pulseMs);
     bool ackOk = ackCommand(commandId, token);
     if (ackOk) {
@@ -322,7 +327,7 @@ void loop() {
     printRuntimeStatus();
   }
 
-  if (millis() - lastLcdRotateMs > 2500) {
+  if (millis() > lcdTransientUntilMs && millis() - lastLcdRotateMs > 2500) {
     lastLcdRotateMs = millis();
     lcdShowApi = !lcdShowApi;
     renderSummaryLcd();
