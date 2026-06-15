@@ -62,6 +62,7 @@ function app_config(): array
         'device_api_key' => (string) env_value('DEVICE_API_KEY', ''),
         'door_open_pulse_ms' => (int) env_value('DOOR_OPEN_PULSE_MS', '1200'),
         'telegram_bot_token' => env_value('TELEGRAM_BOT_TOKEN', ''),
+        'telegram_bot_username' => (string) env_value('TELEGRAM_BOT_USERNAME', ''),
         'sms_provider' => env_value('SMS_PROVIDER', 'twilio'),
         'twilio_account_sid' => env_value('TWILIO_ACCOUNT_SID', ''),
         'twilio_auth_token' => env_value('TWILIO_AUTH_TOKEN', ''),

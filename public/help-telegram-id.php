@@ -6,13 +6,7 @@ require_once __DIR__ . '/../src/view.php';
 require_once __DIR__ . '/../src/config.php';
 
 $config = app_config();
-$botToken = (string) ($config['telegram_bot_token'] ?? '');
-$botUsername = '';
-
-// Probeer bot username uit token af te leiden (dit is niet zeker, dus vooral informatief).
-if ($botToken !== '') {
-    // Dit werkt niet rechtstreeks, dus we laten gebruiker naar BotFather sturen.
-}
+$botUsername = (string) ($config['telegram_bot_username'] ?? '');
 
 render_shell_start('Telegram Chat ID vinden', 'Volg deze stappen om je Telegram chat ID op te zoeken.');
 ?>
@@ -20,9 +14,17 @@ render_shell_start('Telegram Chat ID vinden', 'Volg deze stappen om je Telegram 
 <div class="form">
     <h2>Stap 1: Open de Telegram bot</h2>
     <p class="muted">
-        Zoek in Telegram naar de bot van jouw complex/gebouw. 
-        Je beheert zal je de juiste botnaam gegeven hebben.
-        Of vraag het aan je beheerder.
+        <?php if ($botUsername !== ''): ?>
+            Klik op de knop hieronder of zoek <strong>@<?= htmlspecialchars($botUsername); ?></strong> in Telegram.
+            <br><br>
+            <a href="https://t.me/<?= htmlspecialchars($botUsername); ?>" class="btn" target="_blank" rel="noopener">
+                🤖 Open @<?= htmlspecialchars($botUsername); ?> in Telegram
+            </a>
+        <?php else: ?>
+            Zoek in Telegram naar de bot van jouw complex/gebouw. 
+            Je beheerder zal je de juiste botnaam gegeven hebben.
+            Of vraag het aan je beheerder.
+        <?php endif; ?>
     </p>
 
     <h2>Stap 2: Start een chat</h2>
