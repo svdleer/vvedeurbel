@@ -57,27 +57,25 @@ echo flash_html($message, $type);
 
         <!-- Zichtbaar veld dat chat ID toont na verificatie -->
         <input type="text" id="telegram_chat_id_display" placeholder="Wordt ingevuld na verificatie"
-               readonly style="background: #f5f5f5; color: #666; cursor: not-allowed; display: none;">
+               readonly style="background: #f5f5f5; color: #555; cursor: not-allowed; display: none;">
 
         <div id="telegram-step-detect">
-            <button type="button" id="auto-detect-telegram-btn" style="width: 100%;">🔍 Stap 1: Detecteer mijn chat ID</button>
+            <button type="button" id="auto-detect-telegram-btn">🔍 Stap 1: Detecteer mijn chat ID</button>
         </div>
 
-        <div id="telegram-step-verify" style="display:none; margin-top: 10px;">
+        <div id="telegram-step-verify" style="display:none;">
             <p class="muted" style="margin: 0 0 8px;">
                 Chat ID <strong id="detected-chat-id-label"></strong> gevonden.
                 Er is een 6-cijferige code naar je Telegram gestuurd.
             </p>
-            <div style="display: flex; gap: 8px;">
-                <input type="text" id="telegram-verify-code" placeholder="Voer 6-cijferige code in" maxlength="6" inputmode="numeric" style="flex: 1; letter-spacing: 0.2em;">
-                <button type="button" id="verify-telegram-btn" style="padding: 8px 12px; white-space: nowrap;">✓ Verifieer</button>
-            </div>
+            <input type="text" id="telegram-verify-code" placeholder="Voer 6-cijferige code in" maxlength="6" inputmode="numeric" style="letter-spacing: 0.25em; text-align: center;">
+            <button type="button" id="verify-telegram-btn" style="margin-top: 8px;">✓ Stap 2: Verifieer code</button>
         </div>
 
-        <div id="telegram-step-done" style="display:none; margin-top: 10px;">
-            <div class="flash flash-success" style="margin: 0;">
-                ✓ Chat ID <strong id="verified-chat-id-label"></strong> geverifieerd!
-                <button type="button" id="telegram-reset-btn" style="width: auto; padding: 4px 10px; font-size: 0.82rem; margin-left: 10px; background: #e0e0e0; color: #333;">Opnieuw</button>
+        <div id="telegram-step-done" style="display:none;">
+            <div class="flash flash-success" style="margin: 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <span>✓ Chat ID <strong id="verified-chat-id-label"></strong> geverifieerd!</span>
+                <button type="button" id="telegram-reset-btn" style="width: auto; padding: 6px 14px; font-size: 0.85rem; background: rgba(0,0,0,0.08); color: inherit;">Opnieuw</button>
             </div>
         </div>
 
