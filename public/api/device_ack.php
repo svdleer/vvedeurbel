@@ -36,4 +36,13 @@ if ($stmt->rowCount() === 0) {
     json_response(['ok' => false, 'error' => 'Command niet gevonden of al verwerkt'], 404);
 }
 
+// Geef terugkoppeling aan de bewoner: commando is echt uitgevoerd op het device.
+$eventStmt = $pdo->prepare(
+    "UPDATE ring_events re
+     JOIN open_commands oc ON oc.ring_event_id = re.id
+     SET re.status = 'door_opened_confirmed'
+     WHERE oc.id = :id"
+);
+$eventStmt->execute(['id' => $commandId]);
+
 json_response(['ok' => true]);

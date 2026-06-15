@@ -44,6 +44,15 @@ $eventsStmt = $pdo->prepare(
 $eventsStmt->execute(['resident_id' => $resident['id']]);
 $events = $eventsStmt->fetchAll();
 
+$statusLabels = [
+    'pending' => 'In behandeling',
+    'notified' => 'Melding verstuurd',
+    'notify_failed' => 'Melding mislukt',
+    'opened' => 'Open-opdracht verstuurd',
+    'door_opened_confirmed' => 'Deur geopend (bevestigd)',
+    'unmatched' => 'Onbekend huisnummer',
+];
+
 render_shell_start('Welkom huisnummer ' . $resident['house_number'], 'Laatste belmomenten en snelle deuropening.');
 echo flash_html($message, $type);
 ?>
@@ -60,7 +69,7 @@ echo flash_html($message, $type);
         <?php foreach ($events as $event): ?>
             <div class="flash flash-info">
                 <strong>#<?= (int) $event['id']; ?></strong>
-                - status: <?= htmlspecialchars((string) $event['status']); ?>
+                - status: <?= htmlspecialchars($statusLabels[(string) $event['status']] ?? (string) $event['status']); ?>
                 - tijd: <?= htmlspecialchars((string) $event['created_at']); ?>
                 <?php if ((string) $event['status'] === 'notify_failed' && !empty($event['notify_error'])): ?>
                     <br>
