@@ -37,7 +37,10 @@ echo flash_html($message, $type);
     </label>
 
     <label data-channel="telegram">Telegram chat ID
-        <input type="text" name="telegram_chat_id" placeholder="Bijv. 123456789">
+        <input type="text" name="telegram_chat_id" placeholder="Bijv. 123456789" inputmode="numeric">
+        <p class="muted" style="margin-top: 6px; font-size: 0.85rem;">
+            <a href="/help-telegram-id.php" target="_blank">Hoe vind ik mijn chat ID? →</a>
+        </p>
     </label>
 
     <label data-channel="sms">Mobiel nummer

@@ -19,3 +19,17 @@ if (channelSelect) {
     channelSelect.addEventListener('change', refresh);
     refresh();
 }
+
+// Auto-extract chat ID from pasted JSON
+const chatIdField = document.querySelector('input[name="telegram_chat_id"]');
+if (chatIdField) {
+    chatIdField.addEventListener('paste', (e) => {
+        setTimeout(() => {
+            const value = chatIdField.value;
+            const match = value.match(/[0-9]{8,}/);
+            if (match) {
+                chatIdField.value = match[0];
+            }
+        }, 10);
+    });
+}
