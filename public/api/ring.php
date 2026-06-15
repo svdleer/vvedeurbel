@@ -5,16 +5,21 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../src/db.php';
 require_once __DIR__ . '/../../src/http.php';
 require_once __DIR__ . '/../../src/notifier.php';
+require_once __DIR__ . '/../../src/house_number.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Method not allowed'], 405);
 }
 
 $input = request_json();
-$houseNumber = strtoupper(trim((string) ($input['house_number'] ?? '')));
+$houseNumber = normalize_house_number((string) ($input['house_number'] ?? ''));
 
 if ($houseNumber === '') {
     json_response(['ok' => false, 'error' => 'house_number is verplicht'], 422);
+}
+
+if (!is_valid_house_number($houseNumber)) {
+    json_response(['ok' => false, 'error' => house_number_validation_message()], 422);
 }
 
 $pdo = db();

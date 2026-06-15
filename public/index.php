@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../src/view.php';
+require_once __DIR__ . '/../src/house_number.php';
 
 $message = null;
 $type = 'info';
@@ -12,10 +13,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once __DIR__ . '/../src/http.php';
     require_once __DIR__ . '/../src/notifier.php';
 
-    $houseNumber = strtoupper(trim((string) ($_POST['house_number'] ?? '')));
+    $houseNumber = normalize_house_number((string) ($_POST['house_number'] ?? ''));
 
     if ($houseNumber === '') {
         $message = 'Vul een huisnummer in.';
+        $type = 'error';
+    } elseif (!is_valid_house_number($houseNumber)) {
+        $message = house_number_validation_message();
         $type = 'error';
     } else {
         $pdo = db();
@@ -65,7 +69,7 @@ echo flash_html($message, $type);
 ?>
 <form method="post" class="form">
     <label>Huisnummer
-        <input type="text" name="house_number" placeholder="Bijv. 12A" required maxlength="32">
+        <input type="number" name="house_number" placeholder="Bijv. 117" required min="117" max="156" step="1" inputmode="numeric">
     </label>
 
     <button type="submit">Aanbellen</button>

@@ -20,7 +20,7 @@ echo flash_html($message, $type);
 <form method="post" class="form">
     <div class="grid-2">
         <label>Huisnummer
-            <input type="text" name="house_number" required maxlength="32" placeholder="Bijv. 12A">
+            <input type="number" name="house_number" required min="117" max="156" step="1" inputmode="numeric" placeholder="Bijv. 117">
         </label>
 
         <label>Wachtwoord

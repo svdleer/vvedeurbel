@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/house_number.php';
 
 function ensure_session_started(): void
 {
@@ -39,12 +40,16 @@ function residents_by_house_number(string $houseNumber): array
 
 function register_resident(array $input): array
 {
-    $houseNumber = trim($input['house_number'] ?? '');
+    $houseNumber = normalize_house_number((string) ($input['house_number'] ?? ''));
     $password = (string) ($input['password'] ?? '');
     $channel = trim($input['notification_channel'] ?? '');
 
     if ($houseNumber === '' || $password === '') {
         return ['ok' => false, 'message' => 'Huisnummer en wachtwoord zijn verplicht.'];
+    }
+
+    if (!is_valid_house_number($houseNumber)) {
+        return ['ok' => false, 'message' => house_number_validation_message()];
     }
 
     if (strlen($password) < 8) {
@@ -90,6 +95,11 @@ function register_resident(array $input): array
 
 function login_resident(string $houseNumber, string $password): array
 {
+    $houseNumber = normalize_house_number($houseNumber);
+    if (!is_valid_house_number($houseNumber)) {
+        return ['ok' => false, 'message' => house_number_validation_message()];
+    }
+
     $residents = residents_by_house_number($houseNumber);
     if (empty($residents)) {
         return ['ok' => false, 'message' => 'Onjuiste inloggegevens.'];
