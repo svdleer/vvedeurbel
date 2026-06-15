@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'id' => $link['ring_event_id'],
         ]);
 
-        $message = 'Deur-open commando verzonden. De Arduino voert dit direct uit bij de volgende poll.';
+        $message = 'Deur-open commando verzonden.';
         $type = 'success';
     }
 }
