@@ -1,20 +1,30 @@
 #include <WiFiNINA.h>
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
+#include <LiquidCrystal_I2C.h>
 
 // UNO WiFi Rev2 instellingen
-const char* WIFI_SSID = "YOUR_WIFI_SSID";
-const char* WIFI_PASS = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID = "SerialWLAN";
+const char* WIFI_PASS = "kensentme01!";
 const char* API_HOST = "awesome-robinson.149-210-167-40.plesk.page";
 const int API_PORT = 443;
 const char* API_BASE_PATH = "/api";
-const char* DEVICE_KEY = "YOUR_DEVICE_API_KEY";
+const char* DEVICE_KEY = "8921570317:AAGQqk8IRbuEmS76gmE3xkTcySoOvSbuhA8";
 
 const int RELAY_PIN = 5;
 unsigned long lastPollMs = 0;
 const unsigned long POLL_INTERVAL_MS = 1500;
 
 WiFiSSLClient sslClient;
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+void lcdStatus(const String &line1, const String &line2 = "") {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(line1.substring(0, 16));
+  lcd.setCursor(0, 1);
+  lcd.print(line2.substring(0, 16));
+}
 
 void printWifiStatus() {
   Serial.print("WiFi status: ");
@@ -39,6 +49,7 @@ void printWifiStatus() {
 }
 
 void connectWifi() {
+  lcdStatus("WiFi verbinden", WIFI_SSID);
   Serial.print("Connecting to WiFi");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
@@ -50,6 +61,7 @@ void connectWifi() {
   Serial.println();
   Serial.print("WiFi connected. IP: ");
   Serial.println(WiFi.localIP());
+  lcdStatus("WiFi OK", WiFi.localIP().toString());
   printWifiStatus();
 }
 
@@ -57,6 +69,7 @@ bool pollCommand(int &commandId, String &token, int &pulseMs) {
   HttpClient http(sslClient, API_HOST, API_PORT);
   String path = String(API_BASE_PATH) + "/device_poll.php";
 
+  lcdStatus("Poll API", API_HOST);
   Serial.print("Polling: https://");
   Serial.print(API_HOST);
   Serial.print(path);
@@ -73,6 +86,7 @@ bool pollCommand(int &commandId, String &token, int &pulseMs) {
     http.stop();
     Serial.print("poll status: ");
     Serial.println(code);
+    lcdStatus("Poll fout", String(code));
     if (errorBody.length() > 0) {
       Serial.print("poll body: ");
       Serial.println(errorBody);
@@ -87,6 +101,7 @@ bool pollCommand(int &commandId, String &token, int &pulseMs) {
   Serial.println(code);
   Serial.print("poll body: ");
   Serial.println(body);
+  lcdStatus("Poll OK", "Geen opdracht");
 
   StaticJsonDocument<512> doc;
   DeserializationError err = deserializeJson(doc, body);
@@ -133,16 +148,19 @@ bool ackCommand(int commandId, const String &token) {
 
   Serial.print("ack status: ");
   Serial.println(code);
+  lcdStatus("ACK status", String(code));
 
   return code == 200;
 }
 
 void pulseRelay(int pulseMs) {
   Serial.println("Relay pulse start");
+  lcdStatus("Deur openen", String(pulseMs) + "ms");
   digitalWrite(RELAY_PIN, HIGH);
   delay(pulseMs);
   digitalWrite(RELAY_PIN, LOW);
   Serial.println("Relay pulse done");
+  lcdStatus("Deur geopend", "Klaar");
 }
 
 void setup() {
@@ -152,6 +170,9 @@ void setup() {
   }
 
   Serial.println("Doorbell client starting...");
+  lcd.init();
+  lcd.backlight();
+  lcdStatus("Deurbel client", "Opstarten...");
 
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
@@ -161,6 +182,7 @@ void setup() {
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi disconnected, reconnecting...");
+    lcdStatus("WiFi weg", "Reconnect...");
     connectWifi();
   }
 
@@ -177,10 +199,12 @@ void loop() {
   String token = "";
 
   Serial.println("poll tick");
+  lcdStatus("Wachten...", "Nieuwe poll");
 
   if (pollCommand(commandId, token, pulseMs)) {
     Serial.print("Command received: ");
     Serial.println(commandId);
+    lcdStatus("Opdracht", String(commandId));
     pulseRelay(pulseMs);
     ackCommand(commandId, token);
   }
