@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'open_
 }
 
 $eventsStmt = $pdo->prepare(
-    "SELECT id, house_number, status, created_at, opened_at
+    "SELECT id, house_number, status, notify_error, created_at, opened_at
      FROM ring_events
      WHERE resident_id = :resident_id
      ORDER BY id DESC
@@ -62,6 +62,10 @@ echo flash_html($message, $type);
                 <strong>#<?= (int) $event['id']; ?></strong>
                 - status: <?= htmlspecialchars((string) $event['status']); ?>
                 - tijd: <?= htmlspecialchars((string) $event['created_at']); ?>
+                <?php if ((string) $event['status'] === 'notify_failed' && !empty($event['notify_error'])): ?>
+                    <br>
+                    <span class="muted">Fout: <?= htmlspecialchars((string) $event['notify_error']); ?></span>
+                <?php endif; ?>
             </div>
         <?php endforeach; ?>
     </div>
