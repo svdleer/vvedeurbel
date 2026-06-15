@@ -51,11 +51,12 @@ render_shell_start('Telegram Chat ID vinden', 'Volg deze stappen om je Telegram 
         Vul het getal (zonder minusteken, alleen het getal) in het registratieformulier in.
     </p>
 
-    <h2>Snel alternatief</h2>
+    <h2>Snel alternatief: Auto-detecteer</h2>
     <p class="muted">
-        Stuur naar BotFather (zoek "@BotFather" in Telegram) het commando <code>/getMyID</code>.
-        Dat geeft je je ID direct.
+        Zorg dat je minstens één bericht naar de bot hebt gestuurd. Klik dan op:
     </p>
+    <button type="button" id="auto-detect-btn" class="btn">🔍 Detecteer mijn chat ID</button>
+    <div id="auto-detect-result" style="margin-top: 16px; display: none;"></div>
 </div>
 
 <div class="link-row">
@@ -63,5 +64,45 @@ render_shell_start('Telegram Chat ID vinden', 'Volg deze stappen om je Telegram 
     <a href="/index.php">Terug naar deurbel</a>
 </div>
 
+<script>
+const autoDetectBtn = document.getElementById('auto-detect-btn');
+const autoDetectResult = document.getElementById('auto-detect-result');
+
+if (autoDetectBtn) {
+    autoDetectBtn.addEventListener('click', async () => {
+        autoDetectBtn.disabled = true;
+        autoDetectBtn.textContent = '⏳ Even geduld...';
+
+        try {
+            const res = await fetch('/api/telegram_get_id.php');
+            const data = await res.json();
+
+            autoDetectResult.style.display = 'block';
+
+            if (data.ok) {
+                autoDetectResult.innerHTML = 
+                    '<div class="flash flash-success">' +
+                    '<strong>Chat ID gevonden: ' + data.chat_id + '</strong><br>' +
+                    'Kopieer dit getal en plak het in het registratieformulier.' +
+                    '</div>';
+            } else {
+                autoDetectResult.innerHTML = 
+                    '<div class="flash flash-error">' +
+                    '<strong>Fout:</strong> ' + (data.error || 'Onbekende fout') +
+                    '</div>';
+            }
+        } catch (err) {
+            autoDetectResult.style.display = 'block';
+            autoDetectResult.innerHTML = 
+                '<div class="flash flash-error">' +
+                '<strong>Fout:</strong> ' + err.message +
+                '</div>';
+        }
+
+        autoDetectBtn.disabled = false;
+        autoDetectBtn.textContent = '🔍 Detecteer mijn chat ID';
+    });
+}
+</script>
 <?php
 render_shell_end();
