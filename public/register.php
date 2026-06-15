@@ -50,12 +50,33 @@ echo flash_html($message, $type);
                 Open de bot van dit gebouw in Telegram en stuur een bericht (bijv. "hallo").
             <?php endif; ?>
             <br>
-            <strong>Stap 2:</strong> Klik hieronder op "Auto-detecteer".
+            <strong>Stap 2:</strong> Klik "Auto-detecteer" &rarr; krijg code in Telegram &rarr; voer code in.
         </div>
-        <div style="display: flex; gap: 8px; align-items: flex-end;">
-            <input type="text" name="telegram_chat_id" placeholder="Wordt automatisch ingevuld" inputmode="numeric" style="flex: 1;">
-            <button type="button" id="auto-detect-telegram-btn" style="padding: 8px 12px; white-space: nowrap;">🔍 Auto-detecteer</button>
+
+        <input type="hidden" name="telegram_chat_id" id="telegram_chat_id_field">
+
+        <div id="telegram-step-detect">
+            <button type="button" id="auto-detect-telegram-btn" style="width: 100%;">🔍 Stap 1: Detecteer mijn chat ID</button>
         </div>
+
+        <div id="telegram-step-verify" style="display:none; margin-top: 10px;">
+            <p class="muted" style="margin: 0 0 8px;">
+                Chat ID <strong id="detected-chat-id-label"></strong> gevonden.
+                Er is een 6-cijferige code naar je Telegram gestuurd.
+            </p>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="telegram-verify-code" placeholder="Voer 6-cijferige code in" maxlength="6" inputmode="numeric" style="flex: 1; letter-spacing: 0.2em;">
+                <button type="button" id="verify-telegram-btn" style="padding: 8px 12px; white-space: nowrap;">✓ Verifieer</button>
+            </div>
+        </div>
+
+        <div id="telegram-step-done" style="display:none; margin-top: 10px;">
+            <div class="flash flash-success" style="margin: 0;">
+                ✓ Chat ID <strong id="verified-chat-id-label"></strong> geverifieerd!
+                <button type="button" id="telegram-reset-btn" style="width: auto; padding: 4px 10px; font-size: 0.82rem; margin-left: 10px; background: #e0e0e0; color: #333;">Opnieuw</button>
+            </div>
+        </div>
+
         <p class="muted" style="margin-top: 6px; font-size: 0.85rem;">
             <a href="/help-telegram-id.php" target="_blank">Hulp nodig?</a>
         </p>

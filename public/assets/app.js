@@ -20,51 +20,120 @@ if (channelSelect) {
     refresh();
 }
 
-// Auto-detect Telegram chat ID in registration
+// Telegram verification flow
 const autoDetectBtn = document.getElementById('auto-detect-telegram-btn');
-const chatIdField = document.querySelector('input[name="telegram_chat_id"]');
+const verifyBtn = document.getElementById('verify-telegram-btn');
+const resetBtn = document.getElementById('telegram-reset-btn');
+const chatIdField = document.getElementById('telegram_chat_id_field');
+const stepDetect = document.getElementById('telegram-step-detect');
+const stepVerify = document.getElementById('telegram-step-verify');
+const stepDone = document.getElementById('telegram-step-done');
+const detectedLabel = document.getElementById('detected-chat-id-label');
+const verifiedLabel = document.getElementById('verified-chat-id-label');
+const codeInput = document.getElementById('telegram-verify-code');
 
-if (autoDetectBtn && chatIdField) {
-    autoDetectBtn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        
-        const originalText = autoDetectBtn.textContent;
+let detectedChatId = null;
+
+if (autoDetectBtn) {
+    autoDetectBtn.addEventListener('click', async () => {
         autoDetectBtn.disabled = true;
-        autoDetectBtn.textContent = '⏳ Een moment...';
+        autoDetectBtn.textContent = '⏳ Detecteren...';
 
         try {
             const res = await fetch('/api/telegram_get_id.php');
             const data = await res.json();
 
-            if (data.ok && data.chat_id) {
-                chatIdField.value = data.chat_id;
-                autoDetectBtn.textContent = '✓ Gevonden!';
-                setTimeout(() => {
-                    autoDetectBtn.textContent = originalText;
-                    autoDetectBtn.disabled = false;
-                }, 2000);
-            } else {
+            if (!data.ok) {
                 alert('Fout: ' + (data.error || 'Onbekende fout'));
-                autoDetectBtn.textContent = originalText;
                 autoDetectBtn.disabled = false;
+                autoDetectBtn.textContent = '🔍 Stap 1: Detecteer mijn chat ID';
+                return;
             }
+
+            detectedChatId = String(data.chat_id);
+
+            // Stuur verificatiecode
+            const sendRes = await fetch('/api/telegram_send_code.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({chat_id: detectedChatId}),
+            });
+            const sendData = await sendRes.json();
+
+            if (!sendData.ok) {
+                alert('Fout bij versturen code: ' + (sendData.error || 'Onbekende fout'));
+                autoDetectBtn.disabled = false;
+                autoDetectBtn.textContent = '🔍 Stap 1: Detecteer mijn chat ID';
+                return;
+            }
+
+            detectedLabel.textContent = detectedChatId;
+            stepDetect.style.display = 'none';
+            stepVerify.style.display = 'block';
+            codeInput.focus();
         } catch (err) {
             alert('Fout: ' + err.message);
-            autoDetectBtn.textContent = originalText;
             autoDetectBtn.disabled = false;
+            autoDetectBtn.textContent = '🔍 Stap 1: Detecteer mijn chat ID';
         }
     });
 }
 
-// Auto-extract chat ID from pasted JSON (fallback)
-if (chatIdField) {
-    chatIdField.addEventListener('paste', (e) => {
-        setTimeout(() => {
-            const value = chatIdField.value;
-            const match = value.match(/[0-9]{8,}/);
-            if (match) {
-                chatIdField.value = match[0];
+if (verifyBtn) {
+    verifyBtn.addEventListener('click', async () => {
+        const code = codeInput.value.trim();
+        if (code.length !== 6) {
+            alert('Voer de 6-cijferige code in die je via Telegram hebt ontvangen.');
+            return;
+        }
+
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = '⏳ Verifiëren...';
+
+        try {
+            const res = await fetch('/api/telegram_verify_code.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({chat_id: detectedChatId, code}),
+            });
+            const data = await res.json();
+
+            if (!data.ok) {
+                alert('Fout: ' + (data.error || 'Ongeldige code'));
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = '✓ Verifieer';
+                return;
             }
-        }, 10);
+
+            // Succes: vul hidden field in en toon bevestiging
+            chatIdField.value = detectedChatId;
+            verifiedLabel.textContent = detectedChatId;
+            stepVerify.style.display = 'none';
+            stepDone.style.display = 'block';
+        } catch (err) {
+            alert('Fout: ' + err.message);
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = '✓ Verifieer';
+        }
+    });
+}
+
+if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+        detectedChatId = null;
+        chatIdField.value = '';
+        codeInput.value = '';
+        stepDone.style.display = 'none';
+        stepVerify.style.display = 'none';
+        stepDetect.style.display = 'block';
+        autoDetectBtn.disabled = false;
+        autoDetectBtn.textContent = '🔍 Stap 1: Detecteer mijn chat ID';
+    });
+}
+
+// Auto-extract chat ID from pasted JSON (fallback)
+if (codeInput) {
+    codeInput.addEventListener('input', () => {
+        codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
     });
 }
