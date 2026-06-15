@@ -37,8 +37,23 @@ echo flash_html($message, $type);
     </label>
 
     <label data-channel="telegram">Telegram chat ID
+        <div style="background: #eaf3ff; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; font-size: 0.92rem; color: #1a4678;">
+            <strong>Stap 1:</strong>
+            <?php
+            require_once __DIR__ . '/../src/config.php';
+            $cfg = app_config();
+            $botUser = (string) ($cfg['telegram_bot_username'] ?? '');
+            if ($botUser !== ''):
+            ?>
+                Open <a href="https://t.me/<?= htmlspecialchars($botUser); ?>" target="_blank" rel="noopener"><strong>@<?= htmlspecialchars($botUser); ?></strong></a> in Telegram en stuur een bericht (bijv. "hallo").
+            <?php else: ?>
+                Open de bot van dit gebouw in Telegram en stuur een bericht (bijv. "hallo").
+            <?php endif; ?>
+            <br>
+            <strong>Stap 2:</strong> Klik hieronder op "Auto-detecteer".
+        </div>
         <div style="display: flex; gap: 8px; align-items: flex-end;">
-            <input type="text" name="telegram_chat_id" placeholder="Bijv. 123456789" inputmode="numeric" style="flex: 1;">
+            <input type="text" name="telegram_chat_id" placeholder="Wordt automatisch ingevuld" inputmode="numeric" style="flex: 1;">
             <button type="button" id="auto-detect-telegram-btn" style="padding: 8px 12px; white-space: nowrap;">🔍 Auto-detecteer</button>
         </div>
         <p class="muted" style="margin-top: 6px; font-size: 0.85rem;">
