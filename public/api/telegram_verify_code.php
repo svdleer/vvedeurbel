@@ -26,6 +26,21 @@ try {
 
     $pdo = db();
 
+    // Maak tabel aan als die nog niet bestaat
+    $pdo->exec("CREATE TABLE IF NOT EXISTS telegram_verifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        chat_id VARCHAR(64) NOT NULL,
+        code CHAR(6) NOT NULL,
+        expires_at DATETIME NOT NULL,
+        verified_at DATETIME NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_tv_chat_code (chat_id, code),
+        INDEX idx_tv_expires (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // Normaliseer code: verwijder spaties, zet leading zeros terug indien nodig
+    $code = str_pad(preg_replace('/\D/', '', $code), 6, '0', STR_PAD_LEFT);
+
     $stmt = $pdo->prepare(
         'SELECT id FROM telegram_verifications
          WHERE chat_id = :chat_id AND code = :code AND expires_at > NOW() AND verified_at IS NULL

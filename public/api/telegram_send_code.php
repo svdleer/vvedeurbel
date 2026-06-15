@@ -34,18 +34,8 @@ try {
 
     // Genereer 6-cijferige code
     $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $expiresAt = (new DateTimeImmutable('+5 minutes'))->format('Y-m-d H:i:s');
 
-    $pdo = db();
-
-    // Verwijder oude verificaties voor dit chat ID
-    $pdo->prepare('DELETE FROM telegram_verifications WHERE chat_id = :chat_id')->execute(['chat_id' => $chatId]);
-
-    // Sla nieuwe op
-    $pdo->prepare('INSERT INTO telegram_verifications (chat_id, code, expires_at) VALUES (:chat_id, :code, :expires_at)')
-        ->execute(['chat_id' => $chatId, 'code' => $code, 'expires_at' => $expiresAt]);
-
-    // Stuur code via Telegram
+    // Stuur EERST de code via Telegram, sla daarna pas op
     $message = "🔐 Jouw verificatiecode: <b>{$code}</b>\n\nDeze code is 5 minuten geldig.";
     $url = 'https://api.telegram.org/bot' . $botToken . '/sendMessage';
 
@@ -68,6 +58,29 @@ try {
         echo json_encode(['ok' => false, 'error' => 'Telegram fout: ' . $error]);
         exit;
     }
+
+    $pdo = db();
+
+    // Maak tabel aan als die nog niet bestaat (eerste keer / migratie nog niet gedraaid)
+    $pdo->exec("CREATE TABLE IF NOT EXISTS telegram_verifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        chat_id VARCHAR(64) NOT NULL,
+        code CHAR(6) NOT NULL,
+        expires_at DATETIME NOT NULL,
+        verified_at DATETIME NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_tv_chat_code (chat_id, code),
+        INDEX idx_tv_expires (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $expiresAt = (new DateTimeImmutable('+5 minutes'))->format('Y-m-d H:i:s');
+
+    // Verwijder oude verificaties voor dit chat ID
+    $pdo->prepare('DELETE FROM telegram_verifications WHERE chat_id = :chat_id')->execute(['chat_id' => $chatId]);
+
+    // Sla nieuwe op
+    $pdo->prepare('INSERT INTO telegram_verifications (chat_id, code, expires_at) VALUES (:chat_id, :code, :expires_at)')
+        ->execute(['chat_id' => $chatId, 'code' => $code, 'expires_at' => $expiresAt]);
 
     echo json_encode(['ok' => true, 'message' => 'Code verstuurd naar Telegram chat ' . $chatId]);
 } catch (Throwable $e) {
