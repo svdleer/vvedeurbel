@@ -13,15 +13,35 @@ PRIVATE_ROOT="${PLESK_PRIVATE_ROOT:-$VHOST_ROOT/vvedeurbel-private}"
 mkdir -p "$WEBROOT"
 mkdir -p "$PRIVATE_ROOT/src" "$PRIVATE_ROOT/migrations" "$PRIVATE_ROOT/scripts" "$PRIVATE_ROOT/arduino" "$PRIVATE_ROOT/data"
 
+sync_dir() {
+  local from_dir="$1"
+  local to_dir="$2"
+  local required="${3:-false}"
+
+  mkdir -p "$to_dir"
+
+  if [[ -d "$from_dir" ]]; then
+    rsync -a --delete "$from_dir/" "$to_dir/"
+    return
+  fi
+
+  if [[ "$required" == "true" ]]; then
+    echo "ERROR: required directory missing: $from_dir" >&2
+    exit 1
+  fi
+
+  echo "Skip optional directory (not present in source): $from_dir"
+}
+
 # 1) Deploy only public web files into webroot.
-rsync -a --delete "$SRC_DIR/public/" "$WEBROOT/"
+sync_dir "$SRC_DIR/public" "$WEBROOT" true
 
 # 2) Deploy non-public application files outside webroot.
-rsync -a --delete "$SRC_DIR/src/" "$PRIVATE_ROOT/src/"
-rsync -a --delete "$SRC_DIR/migrations/" "$PRIVATE_ROOT/migrations/"
-rsync -a --delete "$SRC_DIR/scripts/" "$PRIVATE_ROOT/scripts/"
-rsync -a --delete "$SRC_DIR/arduino/" "$PRIVATE_ROOT/arduino/"
-rsync -a --delete "$SRC_DIR/data/" "$PRIVATE_ROOT/data/"
+sync_dir "$SRC_DIR/src" "$PRIVATE_ROOT/src" true
+sync_dir "$SRC_DIR/migrations" "$PRIVATE_ROOT/migrations"
+sync_dir "$SRC_DIR/scripts" "$PRIVATE_ROOT/scripts"
+sync_dir "$SRC_DIR/arduino" "$PRIVATE_ROOT/arduino"
+sync_dir "$SRC_DIR/data" "$PRIVATE_ROOT/data"
 
 # 3) Keep env file outside webroot. Create once if missing.
 if [[ -f "$SRC_DIR/.env" ]]; then
