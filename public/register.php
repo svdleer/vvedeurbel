@@ -55,6 +55,10 @@ echo flash_html($message, $type);
 
         <input type="hidden" name="telegram_chat_id" id="telegram_chat_id_field">
 
+        <!-- Zichtbaar veld dat chat ID toont na verificatie -->
+        <input type="text" id="telegram_chat_id_display" placeholder="Wordt ingevuld na verificatie"
+               readonly style="background: #f5f5f5; color: #666; cursor: not-allowed; display: none;">
+
         <div id="telegram-step-detect">
             <button type="button" id="auto-detect-telegram-btn" style="width: 100%;">🔍 Stap 1: Detecteer mijn chat ID</button>
         </div>

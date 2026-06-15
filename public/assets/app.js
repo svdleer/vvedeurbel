@@ -25,6 +25,7 @@ const autoDetectBtn = document.getElementById('auto-detect-telegram-btn');
 const verifyBtn = document.getElementById('verify-telegram-btn');
 const resetBtn = document.getElementById('telegram-reset-btn');
 const chatIdField = document.getElementById('telegram_chat_id_field');
+const chatIdDisplay = document.getElementById('telegram_chat_id_display');
 const stepDetect = document.getElementById('telegram-step-detect');
 const stepVerify = document.getElementById('telegram-step-verify');
 const stepDone = document.getElementById('telegram-step-done');
@@ -105,8 +106,12 @@ if (verifyBtn) {
                 return;
             }
 
-            // Succes: vul hidden field in en toon bevestiging
+            // Succes: vul hidden field in, toon leesbaar veld, toon bevestiging
             chatIdField.value = detectedChatId;
+            if (chatIdDisplay) {
+                chatIdDisplay.value = detectedChatId;
+                chatIdDisplay.style.display = '';
+            }
             verifiedLabel.textContent = detectedChatId;
             stepVerify.style.display = 'none';
             stepDone.style.display = 'block';
@@ -122,6 +127,10 @@ if (resetBtn) {
     resetBtn.addEventListener('click', () => {
         detectedChatId = null;
         chatIdField.value = '';
+        if (chatIdDisplay) {
+            chatIdDisplay.value = '';
+            chatIdDisplay.style.display = 'none';
+        }
         codeInput.value = '';
         stepDone.style.display = 'none';
         stepVerify.style.display = 'none';
