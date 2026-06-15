@@ -37,9 +37,12 @@ echo flash_html($message, $type);
     </label>
 
     <label data-channel="telegram">Telegram chat ID
-        <input type="text" name="telegram_chat_id" placeholder="Bijv. 123456789" inputmode="numeric">
+        <div style="display: flex; gap: 8px; align-items: flex-end;">
+            <input type="text" name="telegram_chat_id" placeholder="Bijv. 123456789" inputmode="numeric" style="flex: 1;">
+            <button type="button" id="auto-detect-telegram-btn" style="padding: 8px 12px; white-space: nowrap;">🔍 Auto-detecteer</button>
+        </div>
         <p class="muted" style="margin-top: 6px; font-size: 0.85rem;">
-            <a href="/help-telegram-id.php" target="_blank">Hoe vind ik mijn chat ID? →</a>
+            <a href="/help-telegram-id.php" target="_blank">Hulp nodig?</a>
         </p>
     </label>
 
