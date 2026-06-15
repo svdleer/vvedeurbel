@@ -20,6 +20,23 @@ function resident_by_house_number(string $houseNumber): ?array
     return $resident ?: null;
 }
 
+function resident_count_by_house_number(string $houseNumber): int
+{
+    $stmt = db()->prepare('SELECT COUNT(*) AS cnt FROM residents WHERE house_number = :house_number');
+    $stmt->execute(['house_number' => $houseNumber]);
+    $row = $stmt->fetch();
+
+    return (int) ($row['cnt'] ?? 0);
+}
+
+function residents_by_house_number(string $houseNumber): array
+{
+    $stmt = db()->prepare('SELECT * FROM residents WHERE house_number = :house_number ORDER BY id DESC');
+    $stmt->execute(['house_number' => $houseNumber]);
+
+    return $stmt->fetchAll() ?: [];
+}
+
 function register_resident(array $input): array
 {
     $houseNumber = trim($input['house_number'] ?? '');
@@ -54,8 +71,8 @@ function register_resident(array $input): array
         return ['ok' => false, 'message' => 'Push endpoint URL is verplicht voor push notificaties.'];
     }
 
-    if (resident_by_house_number($houseNumber) !== null) {
-        return ['ok' => false, 'message' => 'Huisnummer bestaat al.'];
+    if (resident_count_by_house_number($houseNumber) >= 2) {
+        return ['ok' => false, 'message' => 'Er zijn al 2 accounts voor dit huisnummer.'];
     }
 
     $stmt = db()->prepare('INSERT INTO residents (house_number, password_hash, notification_channel, telegram_chat_id, phone_number, push_endpoint) VALUES (:house_number, :password_hash, :notification_channel, :telegram_chat_id, :phone_number, :push_endpoint)');
@@ -73,8 +90,20 @@ function register_resident(array $input): array
 
 function login_resident(string $houseNumber, string $password): array
 {
-    $resident = resident_by_house_number($houseNumber);
-    if ($resident === null || !password_verify($password, $resident['password_hash'])) {
+    $residents = residents_by_house_number($houseNumber);
+    if (empty($residents)) {
+        return ['ok' => false, 'message' => 'Onjuiste inloggegevens.'];
+    }
+
+    $resident = null;
+    foreach ($residents as $candidate) {
+        if (password_verify($password, (string) $candidate['password_hash'])) {
+            $resident = $candidate;
+            break;
+        }
+    }
+
+    if ($resident === null) {
         return ['ok' => false, 'message' => 'Onjuiste inloggegevens.'];
     }
 

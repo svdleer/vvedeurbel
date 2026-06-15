@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $type = $result['ok'] ? 'success' : 'error';
 }
 
-render_shell_start('Bewoner registratie', 'Per huisnummer precies 1 account.');
+render_shell_start('Bewoner registratie', 'Maximaal 2 accounts per huisnummer.');
 echo flash_html($message, $type);
 ?>
 <form method="post" class="form">

@@ -1,13 +1,14 @@
 CREATE TABLE IF NOT EXISTS residents (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    house_number VARCHAR(32) NOT NULL UNIQUE,
+    house_number VARCHAR(32) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     notification_channel VARCHAR(16) NOT NULL,
     telegram_chat_id VARCHAR(64) NULL,
     phone_number VARCHAR(32) NULL,
     push_endpoint VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_residents_house_number (house_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS ring_events (
