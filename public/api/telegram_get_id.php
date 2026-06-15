@@ -4,9 +4,33 @@ declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 
+function http_post_json_inline(string $url, array $payload): array
+{
+    $ch = curl_init($url);
+    $allHeaders = ['Content-Type: application/json'];
+
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => $allHeaders,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_TIMEOUT => 10,
+    ]);
+
+    $response = curl_exec($ch);
+    $error = curl_error($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($response === false) {
+        return ['ok' => false, 'error' => $error !== '' ? $error : 'cURL error'];
+    }
+
+    return ['ok' => $httpCode >= 200 && $httpCode < 300, 'status' => $httpCode, 'body' => $response];
+}
+
 try {
     require_once __DIR__ . '/../../src/config.php';
-    require_once __DIR__ . '/../../src/http.php';
 
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
         http_response_code(405);
@@ -24,7 +48,7 @@ try {
     }
 
     $url = 'https://api.telegram.org/bot' . $botToken . '/getUpdates';
-    $result = http_post_json($url, []);
+    $result = http_post_json_inline($url, []);
 
     if (!($result['ok'] ?? false)) {
         http_response_code(502);
