@@ -223,7 +223,7 @@ bool pollCommand(int &commandId, String &token, int &pulseMs) {
   return commandId > 0 && token.length() > 10;
 }
 
-bool ackCommand(int commandId, const String &token) {
+bool ackCommand(int commandId, const String &token, String &ackError) {
   HttpClient http(sslClient, API_HOST, API_PORT);
   String path = String(API_BASE_PATH) + "/device_ack.php";
 
@@ -244,16 +244,26 @@ bool ackCommand(int commandId, const String &token) {
   http.endRequest();
 
   int code = http.responseStatusCode();
+  String body = http.responseBody();
   http.stop();
 
   Serial.print("ack status: ");
   Serial.println(code);
+  if (body.length() > 0) {
+    Serial.print("ack body: ");
+    Serial.println(body);
+  }
   lcdTransient("ACK status", String(code), 1500);
 
   if (code == 200) {
     setApiStatus("ok", "ack 200");
+    ackError = "";
   } else {
     setApiStatus("error", "ack " + String(code));
+    ackError = "http" + String(code);
+    if (body.length() > 0) {
+      ackError += ":" + body.substring(0, 10);
+    }
   }
   printRuntimeStatus();
 
@@ -318,11 +328,12 @@ void loop() {
     printRuntimeStatus();
     lcdTransient("Opdracht", String(commandId), 1500);
     pulseRelay(pulseMs);
-    bool ackOk = ackCommand(commandId, token);
+    String ackError = "";
+    bool ackOk = ackCommand(commandId, token, ackError);
     if (ackOk) {
       setLastCommand(String(commandId), "acked", "");
     } else {
-      setLastCommand(String(commandId), "ack_error", "api");
+      setLastCommand(String(commandId), "ack_error", ackError.length() > 0 ? ackError : "api");
     }
     printRuntimeStatus();
   }
