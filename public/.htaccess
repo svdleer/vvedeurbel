@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# Beveilig broncode mappen
+RewriteRule ^(src|migrations|scripts|data)/ - [F,L]
+
+# Statische assets en php pagina's direct serveren
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
