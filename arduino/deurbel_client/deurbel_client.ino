@@ -1,7 +1,7 @@
 #include <WiFiNINA.h>
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
-#include <LiquidCrystal_I2C.h>
+#include <LiquidCrystal.h>
 
 // UNO WiFi Rev2 instellingen
 const char* WIFI_SSID = "SerialWLAN";
@@ -12,11 +12,19 @@ const char* API_BASE_PATH = "/api";
 const char* DEVICE_KEY = "8921570317:AAGQqk8IRbuEmS76gmE3xkTcySoOvSbuhA8";
 
 const int RELAY_PIN = 5;
+// Parallel LCD pins (pas aan naar jouw bedrading)
+const int LCD_RS = 7;
+const int LCD_EN = 8;
+const int LCD_D4 = 9;
+const int LCD_D5 = 10;
+const int LCD_D6 = 11;
+const int LCD_D7 = 12;
+
 unsigned long lastPollMs = 0;
 const unsigned long POLL_INTERVAL_MS = 1500;
 
 WiFiSSLClient sslClient;
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 
 String ipToString(const IPAddress &ip) {
   char buf[20];
@@ -176,8 +184,7 @@ void setup() {
   }
 
   Serial.println("Doorbell client starting...");
-  lcd.init();
-  lcd.backlight();
+  lcd.begin(16, 2);
   lcdStatus("Deurbel client", "Opstarten...");
 
   pinMode(RELAY_PIN, OUTPUT);
