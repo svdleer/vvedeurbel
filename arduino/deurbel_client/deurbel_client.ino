@@ -11,7 +11,8 @@ const int API_PORT = 443;
 const char* API_BASE_PATH = "/api";
 const char* DEVICE_KEY = "Quaf-AT_SIGN-slyp-Cact-FIV";
 
-const int RELAY_PIN = 5;
+const int RELAY_PIN = 2;
+const int RELAY_PULSE_MS = 3000;
 const int STATUS_LED_PIN = LED_BUILTIN;
 // Parallel LCD pins (pas aan naar jouw bedrading)
 const int LCD_RS = 8;
@@ -311,12 +312,13 @@ bool ackCommand(int commandId, const String &token, String &ackError) {
 }
 
 void pulseRelay(int pulseMs) {
+  (void)pulseMs;
   Serial.println("Relay pulse start");
   setLastCommand("open", "running", "");
   printRuntimeStatus();
-  lcdTransient("Deur openen", String(pulseMs) + "ms", pulseMs + 400);
+  lcdTransient("Deur openen", String(RELAY_PULSE_MS) + "ms", RELAY_PULSE_MS + 400);
   digitalWrite(RELAY_PIN, HIGH);
-  delay(pulseMs);
+  delay(RELAY_PULSE_MS);
   digitalWrite(RELAY_PIN, LOW);
   Serial.println("Relay pulse done");
   lcdTransient("Deur geopend", "Klaar", 2000);
