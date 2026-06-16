@@ -11,7 +11,7 @@ const int API_PORT = 443;
 const char* API_BASE_PATH = "/api";
 const char* DEVICE_KEY = "Quaf-AT_SIGN-slyp-Cact-FIV";
 
-const int RELAY_PIN = 2;
+const int RELAY_PIN = 3;
 const int RELAY_PULSE_MS = 3000;
 const unsigned long RELAY_SAFETY_REFRESH_MS = 5000;
 const int RELAY_ACTIVE_STATE = LOW;
@@ -440,7 +440,12 @@ void loop() {
     pendingAckCommandId = 0;
     pendingAckToken = "";
     pendingAckLabel = "";
+    // Reset watchdog timers so ACK latency doesn't trigger reconnect.
+    lastPollSuccessMs = millis();
+    consecutivePollFailures = 0;
+    lastPollMs = millis() - POLL_INTERVAL_MS;
     printRuntimeStatus();
+    return;
   }
 
   if (pollHealthy) {
