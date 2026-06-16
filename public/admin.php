@@ -47,6 +47,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'admin
     $type = 'info';
 }
 
+if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_resident') {
+    $houseNumber = normalize_house_number((string) ($_POST['house_number'] ?? ''));
+    $password = (string) ($_POST['password'] ?? '');
+    $channel = trim((string) ($_POST['notification_channel'] ?? ''));
+    $telegramChatId = trim((string) ($_POST['telegram_chat_id'] ?? ''));
+    $phoneNumber = normalize_phone_number((string) ($_POST['phone_number'] ?? ''));
+    $startHour = (int) ($_POST['notification_start_hour'] ?? 8);
+    $endHour = (int) ($_POST['notification_end_hour'] ?? 22);
+
+    if (!is_valid_house_number($houseNumber)) {
+        $message = house_number_validation_message();
+        $type = 'error';
+    } elseif (strlen($password) < 8) {
+        $message = 'Wachtwoord moet minimaal 8 tekens zijn.';
+        $type = 'error';
+    } elseif (!in_array($channel, [NOTIFY_CHANNEL_TELEGRAM, NOTIFY_CHANNEL_SMS], true)) {
+        $message = 'Kanaal moet Telegram of SMS zijn.';
+        $type = 'error';
+    } elseif ($channel === NOTIFY_CHANNEL_TELEGRAM && $telegramChatId === '') {
+        $message = 'Telegram chat ID is verplicht voor Telegram.';
+        $type = 'error';
+    } elseif ($channel === NOTIFY_CHANNEL_SMS && !is_valid_phone_number($phoneNumber)) {
+        $message = phone_number_validation_message();
+        $type = 'error';
+    } elseif ($startHour < 0 || $startHour > 23 || $endHour < 0 || $endHour > 23 || $startHour >= $endHour) {
+        $message = 'Beschikbare uren moeten geldig zijn (van < tot, beide 0-23).';
+        $type = 'error';
+    } elseif (resident_count_by_house_number($houseNumber) >= 2) {
+        $message = 'Er zijn al 2 accounts voor dit huisnummer.';
+        $type = 'error';
+    } else {
+        $pdo = db();
+        ensure_notification_hours_column();
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO residents (
+                house_number,
+                password_hash,
+                notification_channel,
+                telegram_chat_id,
+                phone_number,
+                push_endpoint,
+                notification_start_hour,
+                notification_end_hour
+            ) VALUES (
+                :house_number,
+                :password_hash,
+                :notification_channel,
+                :telegram_chat_id,
+                :phone_number,
+                :push_endpoint,
+                :start_hour,
+                :end_hour
+            )'
+        );
+        $stmt->execute([
+            'house_number' => $houseNumber,
+            'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            'notification_channel' => $channel,
+            'telegram_chat_id' => $channel === NOTIFY_CHANNEL_TELEGRAM ? $telegramChatId : null,
+            'phone_number' => $channel === NOTIFY_CHANNEL_SMS ? $phoneNumber : null,
+            'push_endpoint' => null,
+            'start_hour' => $startHour,
+            'end_hour' => $endHour,
+        ]);
+
+        $message = 'Gebruiker toegevoegd.';
+        $type = 'success';
+    }
+}
+
 if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_resident') {
     $residentId = (int) ($_POST['resident_id'] ?? 0);
     $houseNumber = normalize_house_number((string) ($_POST['house_number'] ?? ''));
@@ -180,6 +251,50 @@ if ($arduino) {
     <div><strong>Laatste IP:</strong> <?= htmlspecialchars($arduinoIp); ?></div>
     <div class="muted" style="font-size: 0.85rem;">Status is online als heartbeat binnen 60 seconden is ontvangen.</div>
 </div>
+
+<h2>Gebruiker toevoegen</h2>
+<form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 12px;">
+    <input type="hidden" name="action" value="add_resident">
+
+    <div class="grid-2">
+        <label>Huisnummer
+            <input type="number" name="house_number" required min="117" max="156" step="1" placeholder="Bijv. 117">
+        </label>
+
+        <label>Wachtwoord
+            <input type="password" name="password" required minlength="8" placeholder="Minimaal 8 tekens">
+        </label>
+    </div>
+
+    <div class="grid-2">
+        <label>Kanaal
+            <select name="notification_channel" required>
+                <option value="sms" selected>SMS</option>
+                <option value="telegram">Telegram</option>
+            </select>
+        </label>
+
+        <label>Telefoonnummer (+316...)
+            <input type="text" name="phone_number" placeholder="+31612345678">
+        </label>
+    </div>
+
+    <label>Telegram chat ID (alleen invullen bij kanaal Telegram)
+        <input type="text" name="telegram_chat_id" placeholder="Bijv. 123456789">
+    </label>
+
+    <div class="grid-2">
+        <label>Beschikbaar van (uur)
+            <input type="number" name="notification_start_hour" min="0" max="23" step="1" value="8">
+        </label>
+
+        <label>Beschikbaar tot (uur)
+            <input type="number" name="notification_end_hour" min="0" max="23" step="1" value="22">
+        </label>
+    </div>
+
+    <button type="submit">Gebruiker toevoegen</button>
+</form>
 
 <h2>Bewoners</h2>
 <?php if (empty($residents)): ?>
