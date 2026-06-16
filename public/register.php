@@ -30,8 +30,8 @@ echo flash_html($message, $type);
 
     <label>Berichtgeving
         <select name="notification_channel" required data-channel-select>
+            <option value="sms" selected>SMS</option>
             <option value="telegram">Telegram</option>
-            <option value="sms">SMS</option>
         </select>
     </label>
 

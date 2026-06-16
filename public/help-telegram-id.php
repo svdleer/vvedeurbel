@@ -55,7 +55,7 @@ render_shell_start('Telegram Chat ID vinden', 'Volg deze stappen om je Telegram 
 </div>
 
 <div class="link-row">
-    <a href="/3317">Terug naar registratie</a>
+    <a href="/_aanmelden_">Terug naar registratie</a>
     <a href="/index.php">Terug naar deurbel</a>
 </div>
 
