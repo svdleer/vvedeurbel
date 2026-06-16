@@ -121,6 +121,11 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? ''
 render_shell_start('Admin', 'Beheer bewonersregistraties.');
 echo flash_html($message, $type);
 
+echo '<style>
+    section.card { max-width: 100% !important; width: 95vw !important; }
+    main.page { padding: 24px 12px !important; }
+</style>';
+
 if (!$isAdmin):
 ?>
 <form method="post" class="form">
@@ -147,8 +152,8 @@ $residents = db()->query('SELECT * FROM residents ORDER BY house_number ASC, id 
 <?php if (empty($residents)): ?>
     <p class="muted">Geen bewoners gevonden.</p>
 <?php else: ?>
-    <div class="form" style="overflow-x: auto; max-width: 100%;">
-        <div class="muted" style="display:grid; grid-template-columns: 50px 80px 90px 150px 150px 70px 70px 90px 90px; gap: 6px; font-size: 0.75rem; min-width: 900px;">
+    <div class="form" style="overflow-x: auto; max-width: 100%; width: 100%;">
+        <div class="muted" style="display:grid; grid-template-columns: 60px 100px 110px 200px 200px 80px 80px 100px 100px; gap: 8px; font-size: 0.75rem; min-width: 1100px;">
             <span>ID</span>
             <span>Huisnr</span>
             <span>Kanaal</span>
@@ -160,27 +165,27 @@ $residents = db()->query('SELECT * FROM residents ORDER BY house_number ASC, id 
             <span>Verwijder</span>
         </div>
         <?php foreach ($residents as $resident): ?>
-            <form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 8px; display:grid; grid-template-columns: 50px 80px 90px 150px 150px 70px 70px 90px 90px; gap: 6px; align-items: center; min-width: 900px;">
+            <form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 10px; display:grid; grid-template-columns: 60px 100px 110px 200px 200px 80px 80px 100px 100px; gap: 8px; align-items: center; min-width: 1100px;">
                 <input type="hidden" name="resident_id" value="<?= (int) $resident['id']; ?>">
-                <strong style="font-size: 0.85rem;">#<?= (int) $resident['id']; ?></strong>
+                <strong style="font-size: 0.9rem;">#<?= (int) $resident['id']; ?></strong>
 
-                <input type="number" name="house_number" required min="117" max="156" step="1" style="font-size: 0.85rem;" value="<?= htmlspecialchars((string) $resident['house_number']); ?>">
+                <input type="number" name="house_number" required min="117" max="156" step="1" style="font-size: 0.9rem;" value="<?= htmlspecialchars((string) $resident['house_number']); ?>">
 
-                <select name="notification_channel" required style="font-size: 0.85rem;">
+                <select name="notification_channel" required style="font-size: 0.9rem;">
                     <option value="telegram" <?= (string) $resident['notification_channel'] === 'telegram' ? 'selected' : ''; ?>>Telegram</option>
                     <option value="sms" <?= (string) $resident['notification_channel'] === 'sms' ? 'selected' : ''; ?>>SMS</option>
                 </select>
 
-                <input type="text" name="telegram_chat_id" style="font-size: 0.85rem;" value="<?= htmlspecialchars((string) ($resident['telegram_chat_id'] ?? '')); ?>" placeholder="Chat ID">
+                <input type="text" name="telegram_chat_id" style="font-size: 0.9rem;" value="<?= htmlspecialchars((string) ($resident['telegram_chat_id'] ?? '')); ?>" placeholder="Chat ID">
 
-                <input type="text" name="phone_number" style="font-size: 0.85rem;" value="<?= htmlspecialchars((string) ($resident['phone_number'] ?? '')); ?>" placeholder="+316...">
+                <input type="text" name="phone_number" style="font-size: 0.9rem;" value="<?= htmlspecialchars((string) ($resident['phone_number'] ?? '')); ?>" placeholder="+316...">
 
-                <input type="number" name="notification_start_hour" min="0" max="23" step="1" style="font-size: 0.85rem;" value="<?= (int) ($resident['notification_start_hour'] ?? 8); ?>">
+                <input type="number" name="notification_start_hour" min="0" max="23" step="1" style="font-size: 0.9rem;" value="<?= (int) ($resident['notification_start_hour'] ?? 8); ?>">
 
-                <input type="number" name="notification_end_hour" min="0" max="23" step="1" style="font-size: 0.85rem;" value="<?= (int) ($resident['notification_end_hour'] ?? 22); ?>">
+                <input type="number" name="notification_end_hour" min="0" max="23" step="1" style="font-size: 0.9rem;" value="<?= (int) ($resident['notification_end_hour'] ?? 22); ?>">
 
-                <button type="submit" name="action" value="update_resident" style="font-size: 0.85rem;">Opslaan</button>
-                <button type="submit" name="action" value="delete_resident" formnovalidate style="font-size: 0.85rem;" onclick="return confirm('Weet je zeker dat je deze bewoner wilt verwijderen?');">Verwijderen</button>
+                <button type="submit" name="action" value="update_resident" style="font-size: 0.9rem;">Opslaan</button>
+                <button type="submit" name="action" value="delete_resident" formnovalidate style="font-size: 0.9rem;" onclick="return confirm('Weet je zeker dat je deze bewoner wilt verwijderen?');">Verwijderen</button>
             </form>
         <?php endforeach; ?>
     </div>
