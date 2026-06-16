@@ -68,5 +68,6 @@ function app_config(): array
         'twilio_auth_token' => env_value('TWILIO_AUTH_TOKEN', ''),
         'twilio_from' => env_value('TWILIO_FROM', ''),
         'push_webhook_secret' => env_value('PUSH_WEBHOOK_SECRET', ''),
+        'admin_password' => env_value('ADMIN_PASSWORD', ''),
     ];
 }

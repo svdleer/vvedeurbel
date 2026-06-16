@@ -32,7 +32,6 @@ echo flash_html($message, $type);
         <select name="notification_channel" required data-channel-select>
             <option value="telegram">Telegram</option>
             <option value="sms">SMS</option>
-            <option value="push">Push webhook</option>
         </select>
     </label>
 
@@ -113,10 +112,6 @@ echo flash_html($message, $type);
                 <button type="button" id="sms-reset-btn" style="width: auto; padding: 6px 14px; font-size: 0.85rem; background: rgba(0,0,0,0.08); color: inherit;">Opnieuw</button>
             </div>
         </div>
-    </label>
-
-    <label data-channel="push">Push endpoint URL
-        <input type="url" name="push_endpoint" placeholder="Bijv. https://jouwdomein.nl/push-endpoint">
     </label>
 
     <button type="submit">Registreren</button>

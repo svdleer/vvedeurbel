@@ -25,6 +25,18 @@ function render_head(string $title): void
 function render_shell_start(string $title, string $subtitle = ''): void
 {
     render_head($title);
+    
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+    $isAdmin = (bool) ($_SESSION['is_admin'] ?? false);
+    
+    if ($isAdmin) {
+        echo '<nav class="admin-nav">';
+        echo '<a href="/admin.php" class="admin-nav-link">Admin Beheerpagina</a>';
+        echo '</nav>';
+    }
+    
     echo '<main class="page">';
     echo '<div class="bg-shape bg-shape-a"></div><div class="bg-shape bg-shape-b"></div>';
     echo '<section class="card">';

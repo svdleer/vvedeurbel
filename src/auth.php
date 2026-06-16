@@ -39,6 +39,33 @@ function residents_by_house_number(string $houseNumber): array
     return $stmt->fetchAll() ?: [];
 }
 
+function is_sms_verified_recently(string $phoneNumber): bool
+{
+    $pdo = db();
+    $pdo->exec("CREATE TABLE IF NOT EXISTS sms_verifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        phone_number VARCHAR(32) NOT NULL,
+        code CHAR(6) NOT NULL,
+        expires_at DATETIME NOT NULL,
+        verified_at DATETIME NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_sv_phone_code (phone_number, code),
+        INDEX idx_sv_expires (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $stmt = $pdo->prepare(
+        'SELECT id FROM sms_verifications
+         WHERE phone_number = :phone_number
+           AND verified_at IS NOT NULL
+           AND verified_at > DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 DAY)
+         ORDER BY id DESC
+         LIMIT 1'
+    );
+    $stmt->execute(['phone_number' => $phoneNumber]);
+
+    return (bool) $stmt->fetch();
+}
+
 function register_resident(array $input): array
 {
     $houseNumber = normalize_house_number((string) ($input['house_number'] ?? ''));
@@ -57,7 +84,7 @@ function register_resident(array $input): array
         return ['ok' => false, 'message' => 'Wachtwoord moet minimaal 8 tekens zijn.'];
     }
 
-    if (!in_array($channel, [NOTIFY_CHANNEL_TELEGRAM, NOTIFY_CHANNEL_SMS, NOTIFY_CHANNEL_PUSH], true)) {
+    if (!in_array($channel, [NOTIFY_CHANNEL_TELEGRAM, NOTIFY_CHANNEL_SMS], true)) {
         return ['ok' => false, 'message' => 'Kies een geldig notificatiekanaal.'];
     }
 
@@ -77,8 +104,8 @@ function register_resident(array $input): array
         return ['ok' => false, 'message' => phone_number_validation_message()];
     }
 
-    if ($channel === NOTIFY_CHANNEL_PUSH && $pushEndpoint === '') {
-        return ['ok' => false, 'message' => 'Push endpoint URL is verplicht voor push notificaties.'];
+    if ($channel === NOTIFY_CHANNEL_SMS && !is_sms_verified_recently($phoneNumber)) {
+        return ['ok' => false, 'message' => 'Verifieer eerst je SMS nummer met een code.'];
     }
 
     if (resident_count_by_house_number($houseNumber) >= 2) {

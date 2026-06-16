@@ -2,11 +2,10 @@ const channelSelect = document.querySelector('[data-channel-select]');
 if (channelSelect) {
     const telegramRow = document.querySelector('[data-channel=telegram]');
     const smsRow = document.querySelector('[data-channel=sms]');
-    const pushRow = document.querySelector('[data-channel=push]');
 
     const refresh = () => {
         const value = channelSelect.value;
-        const blocks = [telegramRow, smsRow, pushRow];
+        const blocks = [telegramRow, smsRow];
 
         blocks.forEach((block) => {
             if (!block) {

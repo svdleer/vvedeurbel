@@ -214,3 +214,29 @@ button:hover,
         grid-template-columns: 1fr;
     }
 }
+
+.admin-nav {
+    position: fixed;
+    top: 0;
+    right: 0;
+    padding: 12px 20px;
+    background: var(--brand-dark);
+    z-index: 9999;
+    border-radius: 0 0 0 8px;
+}
+
+.admin-nav-link {
+    color: white;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.15);
+    transition: background 0.2s ease;
+}
+
+.admin-nav-link:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
