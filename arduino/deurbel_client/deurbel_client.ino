@@ -26,13 +26,14 @@ unsigned long lastPollMs = 0;
 const unsigned long POLL_INTERVAL_MS = 4000;
 unsigned long lastPollSuccessMs = 0;
 int consecutivePollFailures = 0;
-const int MAX_POLL_FAILURES_BEFORE_RECONNECT = 8;
-const unsigned long MAX_POLL_STALE_MS = 45000;
-const unsigned long WIFI_CONNECT_TIMEOUT_MS = 30000;
-const int MAX_WATCHDOG_RECONNECTS_BEFORE_REBOOT = 3;
+const int MAX_POLL_FAILURES_BEFORE_RECONNECT = 20;
+const unsigned long MAX_POLL_STALE_MS = 180000;
+const unsigned long WIFI_CONNECT_TIMEOUT_MS = 45000;
+const int MAX_WATCHDOG_RECONNECTS_BEFORE_REBOOT = 6;
 int watchdogReconnectCount = 0;
 unsigned long lastLcdRotateMs = 0;
-bool lcdShowApi = true;
+const unsigned long LCD_ROTATE_INTERVAL_MS = 5000;
+int lcdPage = 0;
 unsigned long lcdTransientUntilMs = 0;
 
 WiFiSSLClient sslClient;
@@ -116,15 +117,23 @@ void printRuntimeStatus() {
 }
 
 void renderSummaryLcd() {
-  if (lcdShowApi) {
+  if (lcdPage == 0) {
     lcdStatus("API: " + apiStatus, apiMessage);
-  } else {
+  } else if (lcdPage == 1) {
     String line1 = "CMD:" + lastCommand;
     String line2 = lastCommandStatus;
     if (lastCommandError.length() > 0) {
       line2 = "ERR:" + lastCommandError;
     }
     lcdStatus(line1, line2);
+  } else {
+    if (WiFi.status() == WL_CONNECTED) {
+      String line1 = "WiFi OK " + String(WiFi.RSSI()) + "dBm";
+      String line2 = ipToString(WiFi.localIP());
+      lcdStatus(line1, line2);
+    } else {
+      lcdStatus("WiFi status", "Disconnected");
+    }
   }
 }
 
@@ -414,9 +423,9 @@ void loop() {
     watchdogReconnectCount = 0;
   }
 
-  if (millis() > lcdTransientUntilMs && millis() - lastLcdRotateMs > 2500) {
+  if (millis() > lcdTransientUntilMs && millis() - lastLcdRotateMs > LCD_ROTATE_INTERVAL_MS) {
     lastLcdRotateMs = millis();
-    lcdShowApi = !lcdShowApi;
+    lcdPage = (lcdPage + 1) % 3;
     renderSummaryLcd();
   }
 }
