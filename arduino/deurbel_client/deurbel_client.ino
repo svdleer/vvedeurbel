@@ -13,6 +13,7 @@ const char* DEVICE_KEY = "Quaf-AT_SIGN-slyp-Cact-FIV";
 
 const int RELAY_PIN = 2;
 const int RELAY_PULSE_MS = 3000;
+const unsigned long RELAY_SAFETY_REFRESH_MS = 5000;
 const int STATUS_LED_PIN = LED_BUILTIN;
 // Parallel LCD pins (pas aan naar jouw bedrading)
 const int LCD_RS = 8;
@@ -34,6 +35,16 @@ unsigned long lastLcdRotateMs = 0;
 const unsigned long LCD_ROTATE_INTERVAL_MS = 5000;
 int lcdPage = 0;
 unsigned long lcdTransientUntilMs = 0;
+unsigned long lastRelaySafetyMs = 0;
+
+bool relayActive = false;
+unsigned long relayOffAtMs = 0;
+bool relayFinishedEvent = false;
+
+bool pendingAck = false;
+int pendingAckCommandId = 0;
+String pendingAckToken = "";
+String pendingAckLabel = "";
 
 WiFiSSLClient sslClient;
 LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
@@ -311,17 +322,35 @@ bool ackCommand(int commandId, const String &token, String &ackError) {
   return code == 200;
 }
 
-void pulseRelay(int pulseMs) {
-  (void)pulseMs;
+void startRelayPulse() {
+  // Re-assert output mode before switching the relay for extra safety.
+  pinMode(RELAY_PIN, OUTPUT);
   Serial.println("Relay pulse start");
   setLastCommand("open", "running", "");
   printRuntimeStatus();
   lcdTransient("Deur openen", String(RELAY_PULSE_MS) + "ms", RELAY_PULSE_MS + 400);
   digitalWrite(RELAY_PIN, HIGH);
-  delay(RELAY_PULSE_MS);
-  digitalWrite(RELAY_PIN, LOW);
-  Serial.println("Relay pulse done");
-  lcdTransient("Deur geopend", "Klaar", 2000);
+  relayActive = true;
+  relayOffAtMs = millis() + RELAY_PULSE_MS;
+  relayFinishedEvent = false;
+}
+
+void updateRelayState() {
+  if (relayActive && millis() >= relayOffAtMs) {
+    pinMode(RELAY_PIN, OUTPUT);
+    digitalWrite(RELAY_PIN, LOW);
+    relayActive = false;
+    relayFinishedEvent = true;
+    Serial.println("Relay pulse done");
+    lcdTransient("Deur geopend", "Klaar", 2000);
+  }
+
+  // Keep relay pin in a known safe state while idle.
+  if (!relayActive && millis() - lastRelaySafetyMs >= RELAY_SAFETY_REFRESH_MS) {
+    pinMode(RELAY_PIN, OUTPUT);
+    digitalWrite(RELAY_PIN, LOW);
+    lastRelaySafetyMs = millis();
+  }
 }
 
 void setup() {
@@ -337,6 +366,7 @@ void setup() {
 
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
+  lastRelaySafetyMs = millis();
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, LOW);
   connectWifi();
@@ -347,6 +377,8 @@ void setup() {
 }
 
 void loop() {
+  updateRelayState();
+
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi disconnected, reconnecting...");
     setApiStatus("error", "wifi reconnect");
@@ -378,14 +410,34 @@ void loop() {
     setLastCommand(String(commandId), "received", "");
     printRuntimeStatus();
     lcdTransient("Opdracht", String(commandId), 1500);
-    pulseRelay(pulseMs);
-    String ackError = "";
-    bool ackOk = ackCommand(commandId, token, ackError);
-    if (ackOk) {
-      setLastCommand(String(commandId), "acked", "");
+
+    if (!relayActive && !pendingAck) {
+      (void)pulseMs;
+      startRelayPulse();
+      pendingAck = true;
+      pendingAckCommandId = commandId;
+      pendingAckToken = token;
+      pendingAckLabel = String(commandId);
     } else {
-      setLastCommand(String(commandId), "ack_error", ackError.length() > 0 ? ackError : "api");
+      Serial.println("Relay busy; skipping duplicate command until current cycle finishes");
+      setLastCommand(String(commandId), "busy", "relay active");
     }
+    printRuntimeStatus();
+  }
+
+  if (relayFinishedEvent && pendingAck) {
+    relayFinishedEvent = false;
+    String ackError = "";
+    bool ackOk = ackCommand(pendingAckCommandId, pendingAckToken, ackError);
+    if (ackOk) {
+      setLastCommand(pendingAckLabel, "acked", "");
+    } else {
+      setLastCommand(pendingAckLabel, "ack_error", ackError.length() > 0 ? ackError : "api");
+    }
+    pendingAck = false;
+    pendingAckCommandId = 0;
+    pendingAckToken = "";
+    pendingAckLabel = "";
     printRuntimeStatus();
   }
 
