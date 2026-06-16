@@ -182,7 +182,7 @@ if (smsSendBtn) {
             }
 
             detectedSmsPhone = data.phone_number || phone;
-            smsDetectedLabel.textContent = phone;
+            smsDetectedLabel.textContent = detectedSmsPhone;
             smsStepSend.style.display = 'none';
             smsStepVerify.style.display = 'block';
             smsCodeInput.focus();
@@ -227,6 +227,9 @@ if (smsVerifyBtn) {
                 smsPhoneDisplay.style.display = '';
             }
             smsVerifiedLabel.textContent = detectedSmsPhone;
+            if (smsPhoneInput) {
+                smsPhoneInput.value = detectedSmsPhone;
+            }
             smsStepVerify.style.display = 'none';
             smsStepDone.style.display = 'block';
         } catch (err) {
