@@ -63,22 +63,42 @@ char lastCommandStatus[24] = "idle";
 char lastCommandError[40] = "";
 unsigned long lastCommandTs = 0;
 
-String ipToString(const IPAddress &ip) {
-  char buf[20];
-  snprintf(buf, sizeof(buf), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
-  return String(buf);
+void safeCopy(char *dest, size_t destSize, const char *src) {
+  if (destSize == 0) {
+    return;
+  }
+  if (src == nullptr) {
+    dest[0] = '\0';
+    return;
+  }
+  strncpy(dest, src, destSize - 1);
+  dest[destSize - 1] = '\0';
 }
 
-void lcdStatus(const String &line1, const String &line2 = "") {
+void ipToBuffer(const IPAddress &ip, char *buf, size_t bufSize) {
+  if (bufSize == 0) {
+    return;
+  }
+  snprintf(buf, bufSize, "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+}
+
+void lcdStatusC(const char *line1, const char *line2 = "") {
+  char l1[17];
+  char l2[17];
+  safeCopy(l1, sizeof(l1), line1);
+  safeCopy(l2, sizeof(l2), line2);
+  l1[16] = '\0';
+  l2[16] = '\0';
+
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print(line1.substring(0, 16));
+  lcd.print(l1);
   lcd.setCursor(0, 1);
-  lcd.print(line2.substring(0, 16));
+  lcd.print(l2);
 }
 
-void lcdTransient(const String &line1, const String &line2 = "", unsigned long durationMs = 1500) {
-  lcdStatus(line1, line2);
+void lcdTransientC(const char *line1, const char *line2 = "", unsigned long durationMs = 1500) {
+  lcdStatusC(line1, line2);
   lcdTransientUntilMs = millis() + durationMs;
 }
 
@@ -92,16 +112,16 @@ String uptimeTs() {
   return String(buf);
 }
 
-void setApiStatus(const String &status, const String &message) {
-  status.toCharArray(apiStatus, sizeof(apiStatus));
-  message.toCharArray(apiMessage, sizeof(apiMessage));
+void setApiStatusC(const char *status, const char *message) {
+  safeCopy(apiStatus, sizeof(apiStatus), status);
+  safeCopy(apiMessage, sizeof(apiMessage), message);
   apiTs = millis();
 }
 
-void setLastCommand(const String &command, const String &status, const String &errorMsg) {
-  command.toCharArray(lastCommand, sizeof(lastCommand));
-  status.toCharArray(lastCommandStatus, sizeof(lastCommandStatus));
-  errorMsg.toCharArray(lastCommandError, sizeof(lastCommandError));
+void setLastCommandC(const char *command, const char *status, const char *errorMsg) {
+  safeCopy(lastCommand, sizeof(lastCommand), command);
+  safeCopy(lastCommandStatus, sizeof(lastCommandStatus), status);
+  safeCopy(lastCommandError, sizeof(lastCommandError), errorMsg);
   lastCommandTs = millis();
 }
 
@@ -133,21 +153,27 @@ void printRuntimeStatus() {
 
 void renderSummaryLcd() {
   if (lcdPage == 0) {
-    lcdStatus(String("API: ") + String(apiStatus), String(apiMessage));
+    char line1[24];
+    snprintf(line1, sizeof(line1), "API: %s", apiStatus);
+    lcdStatusC(line1, apiMessage);
   } else if (lcdPage == 1) {
-    String line1 = String("CMD:") + String(lastCommand);
-    String line2 = String(lastCommandStatus);
+    char line1[24];
+    char line2[24];
+    snprintf(line1, sizeof(line1), "CMD:%s", lastCommand);
+    safeCopy(line2, sizeof(line2), lastCommandStatus);
     if (lastCommandError[0] != '\0') {
-      line2 = String("ERR:") + String(lastCommandError);
+      snprintf(line2, sizeof(line2), "ERR:%s", lastCommandError);
     }
-    lcdStatus(line1, line2);
+    lcdStatusC(line1, line2);
   } else {
     if (WiFi.status() == WL_CONNECTED) {
-      String line1 = "WiFi OK " + String(WiFi.RSSI()) + "dBm";
-      String line2 = ipToString(WiFi.localIP());
-      lcdStatus(line1, line2);
+      char line1[24];
+      char ipBuf[20];
+      snprintf(line1, sizeof(line1), "WiFi OK %lddBm", WiFi.RSSI());
+      ipToBuffer(WiFi.localIP(), ipBuf, sizeof(ipBuf));
+      lcdStatusC(line1, ipBuf);
     } else {
-      lcdStatus("WiFi status", "Disconnected");
+      lcdStatusC("WiFi status", "Disconnected");
     }
   }
 }
@@ -199,7 +225,7 @@ bool isWifiHealthy() {
 }
 
 bool connectWifi() {
-  lcdTransient("WiFi verbinden", WIFI_SSID, 2000);
+  lcdTransientC("WiFi verbinden", WIFI_SSID, 2000);
   Serial.print("Connecting to WiFi");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
@@ -212,8 +238,8 @@ bool connectWifi() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println();
     Serial.println("WiFi connect timeout");
-    setApiStatus("error", "wifi timeout");
-    lcdTransient("WiFi timeout", "Reconnect fail", 2000);
+    setApiStatusC("error", "wifi timeout");
+    lcdTransientC("WiFi timeout", "Reconnect fail", 2000);
     printWifiStatus();
     return false;
   }
@@ -221,17 +247,20 @@ bool connectWifi() {
   Serial.println();
   Serial.print("WiFi connected. IP: ");
   Serial.println(WiFi.localIP());
-  setApiStatus("ok", "wifi connected");
-  lcdTransient("WiFi OK", ipToString(WiFi.localIP()), 2000);
+  setApiStatusC("ok", "wifi connected");
+  char ipBuf[20];
+  ipToBuffer(WiFi.localIP(), ipBuf, sizeof(ipBuf));
+  lcdTransientC("WiFi OK", ipBuf, 2000);
   printWifiStatus();
   return true;
 }
 
-bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy) {
+bool pollCommand(int &commandId, char *token, size_t tokenSize, int &pulseMs, bool &pollHealthy) {
   pollHealthy = false;
   prepareHttpClient();
   HttpClient http(sslClient, API_HOST, API_PORT);
-  String path = String(API_BASE_PATH) + "/device_poll.php";
+  char path[48];
+  snprintf(path, sizeof(path), "%s/device_poll.php", API_BASE_PATH);
 
   Serial.print("Polling: https://");
   Serial.print(API_HOST);
@@ -250,7 +279,7 @@ bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy)
     Serial.println(code);
     char netMsg[24];
     snprintf(netMsg, sizeof(netMsg), "net %d", code);
-    setApiStatus("error", String(netMsg));
+    setApiStatusC("error", netMsg);
     printRuntimeStatus();
     return false;
   }
@@ -261,12 +290,18 @@ bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy)
     pollHealthy = true;
     Serial.print("poll status: ");
     Serial.println(code);
-    lcdTransient("Poll fout", String(code), 2000);
-    setApiStatus("error", "HTTP " + String(code));
+    char codeMsg[16];
+    snprintf(codeMsg, sizeof(codeMsg), "%d", code);
+    lcdTransientC("Poll fout", codeMsg, 2000);
+    char httpMsg[24];
+    snprintf(httpMsg, sizeof(httpMsg), "HTTP %d", code);
+    setApiStatusC("error", httpMsg);
     if (errorBody.length() > 0) {
       Serial.print("poll body: ");
       Serial.println(errorBody);
-      setApiStatus("error", errorBody.substring(0, 15));
+      char shortErr[24];
+      safeCopy(shortErr, sizeof(shortErr), errorBody.c_str());
+      setApiStatusC("error", shortErr);
     }
     printRuntimeStatus();
     return false;
@@ -279,14 +314,14 @@ bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy)
   Serial.println(code);
   Serial.print("poll body: ");
   Serial.println(body);
-  setApiStatus("ok", "poll 200");
+  setApiStatusC("ok", "poll 200");
 
   StaticJsonDocument<512> doc;
   DeserializationError err = deserializeJson(doc, body);
   if (err) {
     Serial.print("JSON parse error: ");
     Serial.println(err.c_str());
-    setApiStatus("error", "json parse");
+    setApiStatusC("error", "json parse");
     printRuntimeStatus();
     return false;
   }
@@ -295,35 +330,42 @@ bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy)
 
   bool hasCommand = doc["has_command"] | false;
   if (!hasCommand) {
-    setApiStatus("ok", "no command");
+    setApiStatusC("ok", "no command");
     printRuntimeStatus();
     return false;
   }
 
   commandId = doc["command"]["id"] | 0;
-  token = String((const char*)doc["command"]["token"]);
+  const char *tokenVal = doc["command"]["token"] | "";
+  safeCopy(token, tokenSize, tokenVal);
   pulseMs = doc["command"]["pulse_ms"] | 1200;
 
-  return commandId > 0 && token.length() > 10;
+  return commandId > 0 && token[0] != '\0' && strlen(token) > 10;
 }
 
-bool ackCommand(int commandId, const String &token, String &ackError) {
+bool ackCommand(int commandId, const char *token, char *ackError, size_t ackErrorSize) {
   prepareHttpClient();
   HttpClient http(sslClient, API_HOST, API_PORT);
-  String path = String(API_BASE_PATH) + "/device_ack.php";
+  char path[48];
+  snprintf(path, sizeof(path), "%s/device_ack.php", API_BASE_PATH);
 
   StaticJsonDocument<256> doc;
   doc["command_id"] = commandId;
   doc["token"] = token;
 
-  String payload;
-  serializeJson(doc, payload);
+  char payload[256];
+  size_t payloadLen = serializeJson(doc, payload, sizeof(payload));
+  if (payloadLen == 0 || payloadLen >= sizeof(payload)) {
+    safeCopy(ackError, ackErrorSize, "payload");
+    setApiStatusC("error", "ack payload");
+    return false;
+  }
 
   http.beginRequest();
   http.post(path);
   http.sendHeader("Content-Type", "application/json");
   http.sendHeader("X-DEVICE-KEY", DEVICE_KEY);
-  http.sendHeader("Content-Length", payload.length());
+  http.sendHeader("Content-Length", (int) payloadLen);
   http.beginBody();
   http.print(payload);
   http.endRequest();
@@ -338,20 +380,27 @@ bool ackCommand(int commandId, const String &token, String &ackError) {
     Serial.print("ack body: ");
     Serial.println(body);
   }
-  lcdTransient("ACK status", String(code), 1500);
+  char codeMsg[16];
+  snprintf(codeMsg, sizeof(codeMsg), "%d", code);
+  lcdTransientC("ACK status", codeMsg, 1500);
 
   if (code == 200) {
-    setApiStatus("ok", "ack 200");
-    ackError = "";
+    setApiStatusC("ok", "ack 200");
+    if (ackErrorSize > 0) {
+      ackError[0] = '\0';
+    }
   } else {
     char ackMsg[24];
     snprintf(ackMsg, sizeof(ackMsg), "ack %d", code);
-    setApiStatus("error", String(ackMsg));
-    char ackErrBuf[40];
+    setApiStatusC("error", ackMsg);
+    char ackErrBuf[64];
     snprintf(ackErrBuf, sizeof(ackErrBuf), "http%d", code);
-    ackError = String(ackErrBuf);
+    safeCopy(ackError, ackErrorSize, ackErrBuf);
     if (body.length() > 0) {
-      ackError += ":" + body.substring(0, 10);
+      if (ackErrorSize > 1 && strlen(ackError) < ackErrorSize - 1) {
+        strncat(ackError, ":", ackErrorSize - strlen(ackError) - 1);
+        strncat(ackError, body.c_str(), ackErrorSize - strlen(ackError) - 1);
+      }
     }
   }
   printRuntimeStatus();
@@ -363,9 +412,11 @@ void startRelayPulse() {
   // Re-assert output mode before switching the relay for extra safety.
   pinMode(RELAY_PIN, OUTPUT);
   Serial.println("Relay pulse start");
-  setLastCommand("open", "running", "");
+  setLastCommandC("open", "running", "");
   printRuntimeStatus();
-  lcdTransient("Deur openen", String(RELAY_PULSE_MS) + "ms", RELAY_PULSE_MS + 400);
+  char pulseMsg[16];
+  snprintf(pulseMsg, sizeof(pulseMsg), "%dms", RELAY_PULSE_MS);
+  lcdTransientC("Deur openen", pulseMsg, RELAY_PULSE_MS + 400);
   digitalWrite(RELAY_PIN, RELAY_ACTIVE_STATE);
   relayActive = true;
   relayOffAtMs = millis() + RELAY_PULSE_MS;
@@ -379,7 +430,7 @@ void updateRelayState() {
     relayActive = false;
     relayFinishedEvent = true;
     Serial.println("Relay pulse done");
-    lcdTransient("Deur geopend", "Klaar", 2000);
+    lcdTransientC("Deur geopend", "Klaar", 2000);
   }
 
   // Keep relay pin in a known safe state while idle.
@@ -400,7 +451,7 @@ void setup() {
 
   Serial.println("Doorbell client starting...");
   lcd.begin(16, 2);
-  lcdTransient("Deurbel client", "Opstarten...", 2000);
+  lcdTransientC("Deurbel client", "Opstarten...", 2000);
 
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, RELAY_INACTIVE_STATE);
@@ -421,8 +472,8 @@ void loop() {
 
   if (!isWifiHealthy()) {
     Serial.println("WiFi disconnected, reconnecting...");
-    setApiStatus("error", "wifi reconnect");
-    lcdTransient("WiFi weg", "Reconnect...", 2000);
+    setApiStatusC("error", "wifi reconnect");
+    lcdTransientC("WiFi weg", "Reconnect...", 2000);
     sslClient.stop();
     WiFi.disconnect();
     delay(500);
@@ -442,28 +493,32 @@ void loop() {
 
   int commandId = 0;
   int pulseMs = 1200;
-  String token = "";
+  char token[96] = "";
   bool pollHealthy = false;
 
   Serial.println("poll tick");
 
-  if (pollCommand(commandId, token, pulseMs, pollHealthy)) {
+  if (pollCommand(commandId, token, sizeof(token), pulseMs, pollHealthy)) {
     Serial.print("Command received: ");
     Serial.println(commandId);
-    setLastCommand(String(commandId), "received", "");
+    char cmdLabel[24];
+    snprintf(cmdLabel, sizeof(cmdLabel), "%d", commandId);
+    setLastCommandC(cmdLabel, "received", "");
     printRuntimeStatus();
-    lcdTransient("Opdracht", String(commandId), 1500);
+    lcdTransientC("Opdracht", cmdLabel, 1500);
 
     if (!relayActive && !pendingAck) {
       (void)pulseMs;
       startRelayPulse();
       pendingAck = true;
       pendingAckCommandId = commandId;
-      token.toCharArray(pendingAckToken, sizeof(pendingAckToken));
+      safeCopy(pendingAckToken, sizeof(pendingAckToken), token);
       snprintf(pendingAckLabel, sizeof(pendingAckLabel), "%d", commandId);
     } else {
       Serial.println("Relay busy; skipping duplicate command until current cycle finishes");
-      setLastCommand(String(commandId), "busy", "relay active");
+      char busyLabel[24];
+      snprintf(busyLabel, sizeof(busyLabel), "%d", commandId);
+      setLastCommandC(busyLabel, "busy", "relay active");
     }
     printRuntimeStatus();
   }
@@ -471,10 +526,10 @@ void loop() {
   if (pendingAck && !relayActive && (relayFinishedEvent || millis() - lastAckAttemptMs >= ACK_RETRY_INTERVAL_MS)) {
     relayFinishedEvent = false;
     lastAckAttemptMs = millis();
-    String ackError = "";
-    bool ackOk = ackCommand(pendingAckCommandId, String(pendingAckToken), ackError);
+    char ackError[64] = "";
+    bool ackOk = ackCommand(pendingAckCommandId, pendingAckToken, ackError, sizeof(ackError));
     if (ackOk) {
-      setLastCommand(String(pendingAckLabel), "acked", "");
+      setLastCommandC(pendingAckLabel, "acked", "");
       pendingAck = false;
       pendingAckCommandId = 0;
       pendingAckToken[0] = '\0';
@@ -484,7 +539,7 @@ void loop() {
       consecutivePollFailures = 0;
       lastPollMs = millis() - POLL_INTERVAL_MS;
     } else {
-      setLastCommand(String(pendingAckLabel), "ack_error", ackError.length() > 0 ? ackError : "api");
+      setLastCommandC(pendingAckLabel, "ack_error", ackError[0] != '\0' ? ackError : "api");
     }
     printRuntimeStatus();
     return;
@@ -501,8 +556,8 @@ void loop() {
   if (consecutivePollFailures >= MAX_POLL_FAILURES_BEFORE_RECONNECT ||
       nowMs - lastPollSuccessMs > MAX_POLL_STALE_MS) {
     Serial.println("Poll watchdog: forcing WiFi reconnect...");
-    setApiStatus("error", "poll watchdog");
-    lcdTransient("Netwerk reset", "Watchdog", 1500);
+    setApiStatusC("error", "poll watchdog");
+    lcdTransientC("Netwerk reset", "Watchdog", 1500);
     sslClient.stop();
     WiFi.disconnect();
     delay(250);
