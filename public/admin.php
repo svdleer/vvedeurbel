@@ -147,8 +147,8 @@ $residents = db()->query('SELECT * FROM residents ORDER BY house_number ASC, id 
 <?php if (empty($residents)): ?>
     <p class="muted">Geen bewoners gevonden.</p>
 <?php else: ?>
-    <div class="form">
-        <div class="muted" style="display:grid; grid-template-columns: 50px 80px 90px 1fr 1fr 60px 60px 90px 90px; gap: 6px; font-size: 0.75rem;">
+    <div class="form" style="overflow-x: auto; max-width: 100%;">
+        <div class="muted" style="display:grid; grid-template-columns: 50px 80px 90px 150px 150px 70px 70px 90px 90px; gap: 6px; font-size: 0.75rem; min-width: 900px;">
             <span>ID</span>
             <span>Huisnr</span>
             <span>Kanaal</span>
@@ -160,7 +160,7 @@ $residents = db()->query('SELECT * FROM residents ORDER BY house_number ASC, id 
             <span>Verwijder</span>
         </div>
         <?php foreach ($residents as $resident): ?>
-            <form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 8px; display:grid; grid-template-columns: 50px 80px 90px 1fr 1fr 60px 60px 90px 90px; gap: 6px; align-items: center;">
+            <form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 8px; display:grid; grid-template-columns: 50px 80px 90px 150px 150px 70px 70px 90px 90px; gap: 6px; align-items: center; min-width: 900px;">
                 <input type="hidden" name="resident_id" value="<?= (int) $resident['id']; ?>">
                 <strong style="font-size: 0.85rem;">#<?= (int) $resident['id']; ?></strong>
 
@@ -171,7 +171,7 @@ $residents = db()->query('SELECT * FROM residents ORDER BY house_number ASC, id 
                     <option value="sms" <?= (string) $resident['notification_channel'] === 'sms' ? 'selected' : ''; ?>>SMS</option>
                 </select>
 
-                <input type="text" name="telegram_chat_id" style="font-size: 0.85rem;" value="<?= htmlspecialchars((string) ($resident['telegram_chat_id'] ?? '')); ?>" placeholder="ID">
+                <input type="text" name="telegram_chat_id" style="font-size: 0.85rem;" value="<?= htmlspecialchars((string) ($resident['telegram_chat_id'] ?? '')); ?>" placeholder="Chat ID">
 
                 <input type="text" name="phone_number" style="font-size: 0.85rem;" value="<?= htmlspecialchars((string) ($resident['phone_number'] ?? '')); ?>" placeholder="+316...">
 
