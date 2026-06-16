@@ -181,48 +181,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'reset_password') {
 
 render_shell_start('Wachtwoord vergeten', 'Reset via SMS of Telegram met verificatiecode.');
 echo flash_html($message, $type);
+
+$postedHouseNumber = htmlspecialchars((string) ($_POST['house_number'] ?? ''));
+$postedChannel = (string) ($_POST['reset_channel'] ?? 'sms');
+$postedCode = htmlspecialchars((string) ($_POST['code'] ?? ''));
 ?>
 
 <form method="post" class="form">
-    <input type="hidden" name="action" value="send_code">
-
     <label>Huisnummer
-        <input type="number" name="house_number" required min="117" max="156" step="1" placeholder="Bijv. 117">
+        <input type="number" name="house_number" required min="117" max="156" step="1" placeholder="Bijv. 117" value="<?= $postedHouseNumber; ?>">
     </label>
 
     <label>Kanaal
         <select name="reset_channel" required>
-            <option value="sms">SMS</option>
-            <option value="telegram">Telegram</option>
+            <option value="sms" <?= $postedChannel === 'sms' ? 'selected' : ''; ?>>SMS</option>
+            <option value="telegram" <?= $postedChannel === 'telegram' ? 'selected' : ''; ?>>Telegram</option>
         </select>
     </label>
 
-    <button type="submit">Verstuur resetcode</button>
-</form>
-
-<form method="post" class="form">
-    <input type="hidden" name="action" value="reset_password">
-
-    <label>Huisnummer
-        <input type="number" name="house_number" required min="117" max="156" step="1" placeholder="Bijv. 117">
-    </label>
-
-    <label>Kanaal
-        <select name="reset_channel" required>
-            <option value="sms">SMS</option>
-            <option value="telegram">Telegram</option>
-        </select>
-    </label>
+    <p class="muted" style="margin: 0;">
+        Stap 1: klik op <strong>Verstuur resetcode</strong>.
+        Stap 2: vul de code en je nieuwe wachtwoord in en klik op <strong>Reset wachtwoord</strong>.
+    </p>
 
     <label>Code
-        <input type="text" name="code" required maxlength="6" inputmode="numeric" placeholder="6-cijferige code">
+        <input type="text" name="code" maxlength="6" inputmode="numeric" placeholder="6-cijferige code" value="<?= $postedCode; ?>">
     </label>
 
     <label>Nieuw wachtwoord
-        <input type="password" name="new_password" required minlength="8" placeholder="Minimaal 8 tekens">
+        <input type="password" name="new_password" minlength="8" placeholder="Minimaal 8 tekens">
     </label>
 
-    <button type="submit">Reset wachtwoord</button>
+    <div class="grid-2">
+        <button type="submit" name="action" value="send_code">Verstuur resetcode</button>
+        <button type="submit" name="action" value="reset_password">Reset wachtwoord</button>
+    </div>
 </form>
 
 <div class="link-row">
