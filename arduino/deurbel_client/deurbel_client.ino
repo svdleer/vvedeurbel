@@ -4,14 +4,15 @@
 #include <LiquidCrystal.h>
 
 // UNO WiFi Rev2 instellingen
-const char* WIFI_SSID = "SerialWLAN";
-const char* WIFI_PASS = "kensentme01";
-const char* API_HOST = "awesome-robinson.149-210-167-40.plesk.page";
+const char* WIFI_SSID = "DeurbelZV";
+const char* WIFI_PASS = "Zilvervloot987!!";
+const char* API_HOST = "zilvervlootbel.nl";
 const int API_PORT = 443;
 const char* API_BASE_PATH = "/api";
 const char* DEVICE_KEY = "Quaf-AT_SIGN-slyp-Cact-FIV";
 
 const int RELAY_PIN = 5;
+const int STATUS_LED_PIN = LED_BUILTIN;
 // Parallel LCD pins (pas aan naar jouw bedrading)
 const int LCD_RS = 8;
 const int LCD_EN = 9;
@@ -284,7 +285,8 @@ void pulseRelay(int pulseMs) {
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) {
+  unsigned long serialWaitStart = millis();
+  while (!Serial && millis() - serialWaitStart < 3000) {
     ;
   }
 
@@ -294,6 +296,8 @@ void setup() {
 
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
+  pinMode(STATUS_LED_PIN, OUTPUT);
+  digitalWrite(STATUS_LED_PIN, LOW);
   connectWifi();
   lastLcdRotateMs = millis();
   renderSummaryLcd();
