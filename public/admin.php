@@ -7,6 +7,7 @@ require_once __DIR__ . '/../src/db.php';
 require_once __DIR__ . '/../src/config.php';
 require_once __DIR__ . '/../src/house_number.php';
 require_once __DIR__ . '/../src/phone_number.php';
+require_once __DIR__ . '/../src/auth.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -52,6 +53,8 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? ''
     $channel = trim((string) ($_POST['notification_channel'] ?? ''));
     $telegramChatId = trim((string) ($_POST['telegram_chat_id'] ?? ''));
     $phoneNumber = normalize_phone_number((string) ($_POST['phone_number'] ?? ''));
+    $startHour = (int) ($_POST['notification_start_hour'] ?? 8);
+    $endHour = (int) ($_POST['notification_end_hour'] ?? 22);
 
     if ($residentId <= 0) {
         $message = 'Ongeldige bewoner.';
@@ -69,25 +72,35 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? ''
         $message = phone_number_validation_message();
         $type = 'error';
     } else {
-        $pdo = db();
-        $stmt = $pdo->prepare(
-            'UPDATE residents
-             SET house_number = :house_number,
-                 notification_channel = :notification_channel,
-                 telegram_chat_id = :telegram_chat_id,
-                 phone_number = :phone_number
-             WHERE id = :id'
-        );
-        $stmt->execute([
-            'house_number' => $houseNumber,
-            'notification_channel' => $channel,
-            'telegram_chat_id' => $channel === NOTIFY_CHANNEL_TELEGRAM ? $telegramChatId : null,
-            'phone_number' => $channel === NOTIFY_CHANNEL_SMS ? $phoneNumber : null,
-            'id' => $residentId,
-        ]);
+        if ($startHour < 0 || $startHour > 23 || $endHour < 0 || $endHour > 23 || $startHour >= $endHour) {
+            $message = 'Beschikbare uren moeten geldig zijn (van < tot, beide 0-23).';
+            $type = 'error';
+        } else {
+            $pdo = db();
+            ensure_notification_hours_column();
+            $stmt = $pdo->prepare(
+                'UPDATE residents
+                 SET house_number = :house_number,
+                     notification_channel = :notification_channel,
+                     telegram_chat_id = :telegram_chat_id,
+                     phone_number = :phone_number,
+                     notification_start_hour = :start_hour,
+                     notification_end_hour = :end_hour
+                 WHERE id = :id'
+            );
+            $stmt->execute([
+                'house_number' => $houseNumber,
+                'notification_channel' => $channel,
+                'telegram_chat_id' => $channel === NOTIFY_CHANNEL_TELEGRAM ? $telegramChatId : null,
+                'phone_number' => $channel === NOTIFY_CHANNEL_SMS ? $phoneNumber : null,
+                'start_hour' => $startHour,
+                'end_hour' => $endHour,
+                'id' => $residentId,
+            ]);
 
-        $message = 'Bewoner bijgewerkt.';
-        $type = 'success';
+            $message = 'Bewoner bijgewerkt.';
+            $type = 'success';
+        }
     }
 }
 
@@ -135,33 +148,39 @@ $residents = db()->query('SELECT * FROM residents ORDER BY house_number ASC, id 
     <p class="muted">Geen bewoners gevonden.</p>
 <?php else: ?>
     <div class="form">
-        <div class="muted" style="display:grid; grid-template-columns: 70px 110px 140px 1fr 1fr 110px 120px; gap: 8px; font-size: 0.82rem;">
+        <div class="muted" style="display:grid; grid-template-columns: 50px 80px 90px 1fr 1fr 60px 60px 90px 90px; gap: 6px; font-size: 0.75rem;">
             <span>ID</span>
             <span>Huisnr</span>
             <span>Kanaal</span>
             <span>Telegram chat ID</span>
-            <span>Telefoon (+316...)</span>
+            <span>Telefoon</span>
+            <span>Van uur</span>
+            <span>Tot uur</span>
             <span>Opslaan</span>
             <span>Verwijder</span>
         </div>
         <?php foreach ($residents as $resident): ?>
-            <form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 10px; display:grid; grid-template-columns: 70px 110px 140px 1fr 1fr 110px 120px; gap: 8px; align-items: center;">
+            <form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 8px; display:grid; grid-template-columns: 50px 80px 90px 1fr 1fr 60px 60px 90px 90px; gap: 6px; align-items: center;">
                 <input type="hidden" name="resident_id" value="<?= (int) $resident['id']; ?>">
-                <strong>#<?= (int) $resident['id']; ?></strong>
+                <strong style="font-size: 0.85rem;">#<?= (int) $resident['id']; ?></strong>
 
-                <input type="number" name="house_number" required min="117" max="156" step="1" value="<?= htmlspecialchars((string) $resident['house_number']); ?>">
+                <input type="number" name="house_number" required min="117" max="156" step="1" style="font-size: 0.85rem;" value="<?= htmlspecialchars((string) $resident['house_number']); ?>">
 
-                <select name="notification_channel" required>
+                <select name="notification_channel" required style="font-size: 0.85rem;">
                     <option value="telegram" <?= (string) $resident['notification_channel'] === 'telegram' ? 'selected' : ''; ?>>Telegram</option>
                     <option value="sms" <?= (string) $resident['notification_channel'] === 'sms' ? 'selected' : ''; ?>>SMS</option>
                 </select>
 
-                <input type="text" name="telegram_chat_id" value="<?= htmlspecialchars((string) ($resident['telegram_chat_id'] ?? '')); ?>" placeholder="Telegram chat ID">
+                <input type="text" name="telegram_chat_id" style="font-size: 0.85rem;" value="<?= htmlspecialchars((string) ($resident['telegram_chat_id'] ?? '')); ?>" placeholder="ID">
 
-                <input type="text" name="phone_number" value="<?= htmlspecialchars((string) ($resident['phone_number'] ?? '')); ?>" placeholder="+316...">
+                <input type="text" name="phone_number" style="font-size: 0.85rem;" value="<?= htmlspecialchars((string) ($resident['phone_number'] ?? '')); ?>" placeholder="+316...">
 
-                <button type="submit" name="action" value="update_resident">Opslaan</button>
-                <button type="submit" name="action" value="delete_resident" formnovalidate onclick="return confirm('Weet je zeker dat je deze bewoner wilt verwijderen?');">Verwijderen</button>
+                <input type="number" name="notification_start_hour" min="0" max="23" step="1" style="font-size: 0.85rem;" value="<?= (int) ($resident['notification_start_hour'] ?? 8); ?>">
+
+                <input type="number" name="notification_end_hour" min="0" max="23" step="1" style="font-size: 0.85rem;" value="<?= (int) ($resident['notification_end_hour'] ?? 22); ?>">
+
+                <button type="submit" name="action" value="update_resident" style="font-size: 0.85rem;">Opslaan</button>
+                <button type="submit" name="action" value="delete_resident" formnovalidate style="font-size: 0.85rem;" onclick="return confirm('Weet je zeker dat je deze bewoner wilt verwijderen?');">Verwijderen</button>
             </form>
         <?php endforeach; ?>
     </div>

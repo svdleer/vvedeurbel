@@ -39,6 +39,32 @@ function residents_by_house_number(string $houseNumber): array
     return $stmt->fetchAll() ?: [];
 }
 
+function ensure_notification_hours_column(): void
+{
+    $pdo = db();
+    try {
+        $pdo->exec("ALTER TABLE residents ADD COLUMN notification_start_hour TINYINT UNSIGNED DEFAULT 8");
+    } catch (Exception) {
+        // Column already exists
+    }
+    try {
+        $pdo->exec("ALTER TABLE residents ADD COLUMN notification_end_hour TINYINT UNSIGNED DEFAULT 22");
+    } catch (Exception) {
+        // Column already exists
+    }
+}
+
+function is_resident_available(array $resident): bool
+{
+    ensure_notification_hours_column();
+    
+    $startHour = (int) ($resident['notification_start_hour'] ?? 8);
+    $endHour = (int) ($resident['notification_end_hour'] ?? 22);
+    $currentHour = (int) (new DateTime('now', new DateTimeZone('Europe/Amsterdam')))->format('H');
+    
+    return $currentHour >= $startHour && $currentHour < $endHour;
+}
+
 function is_sms_verified_recently(string $phoneNumber): bool
 {
     $pdo = db();
@@ -112,7 +138,15 @@ function register_resident(array $input): array
         return ['ok' => false, 'message' => 'Er zijn al 2 accounts voor dit huisnummer.'];
     }
 
-    $stmt = db()->prepare('INSERT INTO residents (house_number, password_hash, notification_channel, telegram_chat_id, phone_number, push_endpoint) VALUES (:house_number, :password_hash, :notification_channel, :telegram_chat_id, :phone_number, :push_endpoint)');
+    $startHour = (int) ($input['notification_start_hour'] ?? 8);
+    $endHour = (int) ($input['notification_end_hour'] ?? 22);
+    if ($startHour < 0 || $startHour > 23 || $endHour < 0 || $endHour > 23 || $startHour >= $endHour) {
+        $startHour = 8;
+        $endHour = 22;
+    }
+
+    ensure_notification_hours_column();
+    $stmt = db()->prepare('INSERT INTO residents (house_number, password_hash, notification_channel, telegram_chat_id, phone_number, push_endpoint, notification_start_hour, notification_end_hour) VALUES (:house_number, :password_hash, :notification_channel, :telegram_chat_id, :phone_number, :push_endpoint, :start_hour, :end_hour)');
     $stmt->execute([
         'house_number' => $houseNumber,
         'password_hash' => password_hash($password, PASSWORD_DEFAULT),
@@ -120,6 +154,8 @@ function register_resident(array $input): array
         'telegram_chat_id' => $telegramChatId !== '' ? $telegramChatId : null,
         'phone_number' => $phoneNumber !== '' ? $phoneNumber : null,
         'push_endpoint' => $pushEndpoint !== '' ? $pushEndpoint : null,
+        'start_hour' => $startHour,
+        'end_hour' => $endHour,
     ]);
 
     return ['ok' => true, 'message' => 'Registratie gelukt. Je kunt nu inloggen.'];

@@ -114,6 +114,14 @@ echo flash_html($message, $type);
         </div>
     </label>
 
+    <label>Beschikbare uren (uur van - tot, bijvoorbeeld 08:00 - 22:00)
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <input type="number" name="notification_start_hour" min="0" max="23" step="1" value="8" placeholder="Vanaf uur" title="Uurwaarde 0-23">
+            <input type="number" name="notification_end_hour" min="0" max="23" step="1" value="22" placeholder="Tot uur" title="Uurwaarde 0-23">
+        </div>
+        <p class="muted" style="margin: 8px 0 0 0; font-size: 0.85rem;">Optioneel. Je ontvangt alleen meldingen tussen deze uren.</p>
+    </label>
+
     <button type="submit">Registreren</button>
 </form>
 
