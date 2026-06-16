@@ -2,6 +2,7 @@
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
 #include <LiquidCrystal.h>
+#include <avr/wdt.h>
 
 // UNO WiFi Rev2 instellingen
 const char* WIFI_SSID = "DeurbelZV";
@@ -22,11 +23,14 @@ const int LCD_D6 = 6;
 const int LCD_D7 = 7;
 
 unsigned long lastPollMs = 0;
-const unsigned long POLL_INTERVAL_MS = 1500;
+const unsigned long POLL_INTERVAL_MS = 4000;
 unsigned long lastPollSuccessMs = 0;
 int consecutivePollFailures = 0;
 const int MAX_POLL_FAILURES_BEFORE_RECONNECT = 8;
 const unsigned long MAX_POLL_STALE_MS = 45000;
+const unsigned long WIFI_CONNECT_TIMEOUT_MS = 30000;
+const int MAX_WATCHDOG_RECONNECTS_BEFORE_REBOOT = 3;
+int watchdogReconnectCount = 0;
 unsigned long lastLcdRotateMs = 0;
 bool lcdShowApi = true;
 unsigned long lcdTransientUntilMs = 0;
@@ -146,14 +150,36 @@ void printWifiStatus() {
   }
 }
 
-void connectWifi() {
+void rebootBoard(const String &reason) {
+  Serial.print("Rebooting board: ");
+  Serial.println(reason);
+  setApiStatus("error", "reboot " + reason.substring(0, 8));
+  lcdTransient("Arduino reboot", reason.substring(0, 16), 1200);
+  delay(1200);
+  wdt_enable(WDTO_15MS);
+  while (true) {
+    ;
+  }
+}
+
+bool connectWifi() {
   lcdTransient("WiFi verbinden", WIFI_SSID, 2000);
   Serial.print("Connecting to WiFi");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-  while (WiFi.status() != WL_CONNECTED) {
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_CONNECT_TIMEOUT_MS) {
     Serial.print(".");
     delay(400);
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println();
+    Serial.println("WiFi connect timeout");
+    setApiStatus("error", "wifi timeout");
+    lcdTransient("WiFi timeout", "Reconnect fail", 2000);
+    printWifiStatus();
+    return false;
   }
 
   Serial.println();
@@ -162,6 +188,7 @@ void connectWifi() {
   setApiStatus("ok", "wifi connected");
   lcdTransient("WiFi OK", ipToString(WiFi.localIP()), 2000);
   printWifiStatus();
+  return true;
 }
 
 bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy) {
@@ -305,7 +332,9 @@ void setup() {
   digitalWrite(RELAY_PIN, LOW);
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, LOW);
-  connectWifi();
+  if (!connectWifi()) {
+    rebootBoard("wifi timeout");
+  }
   lastPollSuccessMs = millis();
   consecutivePollFailures = 0;
   lastLcdRotateMs = millis();
@@ -317,7 +346,9 @@ void loop() {
     Serial.println("WiFi disconnected, reconnecting...");
     setApiStatus("error", "wifi reconnect");
     lcdTransient("WiFi weg", "Reconnect...", 2000);
-    connectWifi();
+    if (!connectWifi()) {
+      rebootBoard("wifi down");
+    }
   }
 
   unsigned long now = millis();
@@ -368,9 +399,19 @@ void loop() {
     sslClient.stop();
     WiFi.disconnect();
     delay(250);
-    connectWifi();
+    watchdogReconnectCount++;
+    if (!connectWifi()) {
+      rebootBoard("watchdog wifi");
+    }
     consecutivePollFailures = 0;
     lastPollSuccessMs = millis();
+    if (watchdogReconnectCount >= MAX_WATCHDOG_RECONNECTS_BEFORE_REBOOT) {
+      rebootBoard("watchdog loop");
+    }
+  }
+
+  if (pollHealthy) {
+    watchdogReconnectCount = 0;
   }
 
   if (millis() > lcdTransientUntilMs && millis() - lastLcdRotateMs > 2500) {
