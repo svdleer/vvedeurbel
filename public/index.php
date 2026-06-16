@@ -78,7 +78,6 @@ echo flash_html($message, $type);
 </form>
 
 <div class="link-row">
-    <a href="/register.php">Bewoner registreren</a>
     <a href="/login.php">Bewoner login</a>
 </div>
 <?php

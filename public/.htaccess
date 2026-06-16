@@ -6,6 +6,13 @@ RewriteRule ^(src|migrations|scripts|data)/ - [F,L]
 # Friendly URL: /admin -> /admin.php
 RewriteRule ^admin/?$ admin.php [L,QSA,NC]
 
+# Friendly hidden URL: /3317 -> /register.php
+RewriteRule ^3317/?$ register.php [L,QSA,NC]
+
+# Redirect direct register.php access to hidden path
+RewriteCond %{THE_REQUEST} \s/+register\.php(?:[\s?]|$) [NC]
+RewriteRule ^register\.php$ /3317 [R=302,L,NC]
+
 # Statische assets en php pagina's direct serveren
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d

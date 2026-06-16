@@ -44,7 +44,6 @@ echo flash_html($message, $type);
 </form>
 
 <div class="link-row">
-    <a href="/register.php">Nog geen account? Registreer</a>
     <a href="/forgot-password.php">Wachtwoord vergeten</a>
     <a href="/index.php">Terug naar deurbel</a>
 </div>
