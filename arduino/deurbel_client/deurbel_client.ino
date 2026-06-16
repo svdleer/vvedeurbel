@@ -2,7 +2,6 @@
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
 #include <LiquidCrystal.h>
-#include <avr/wdt.h>
 
 // UNO WiFi Rev2 instellingen
 const char* WIFI_SSID = "DeurbelZV";
@@ -29,7 +28,6 @@ int consecutivePollFailures = 0;
 const int MAX_POLL_FAILURES_BEFORE_RECONNECT = 20;
 const unsigned long MAX_POLL_STALE_MS = 180000;
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 45000;
-const int MAX_WATCHDOG_RECONNECTS_BEFORE_REBOOT = 6;
 int watchdogReconnectCount = 0;
 unsigned long lastLcdRotateMs = 0;
 const unsigned long LCD_ROTATE_INTERVAL_MS = 5000;
@@ -159,18 +157,6 @@ void printWifiStatus() {
   }
 }
 
-void rebootBoard(const String &reason) {
-  Serial.print("Rebooting board: ");
-  Serial.println(reason);
-  setApiStatus("error", "reboot " + reason.substring(0, 8));
-  lcdTransient("Arduino reboot", reason.substring(0, 16), 1200);
-  delay(1200);
-  wdt_enable(WDTO_15MS);
-  while (true) {
-    ;
-  }
-}
-
 bool connectWifi() {
   lcdTransient("WiFi verbinden", WIFI_SSID, 2000);
   Serial.print("Connecting to WiFi");
@@ -216,9 +202,19 @@ bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy)
   http.endRequest();
 
   int code = http.responseStatusCode();
+  if (code < 0) {
+    http.stop();
+    Serial.print("poll transport error: ");
+    Serial.println(code);
+    setApiStatus("error", "net " + String(code));
+    printRuntimeStatus();
+    return false;
+  }
+
   if (code != 200) {
     String errorBody = http.responseBody();
     http.stop();
+    pollHealthy = true;
     Serial.print("poll status: ");
     Serial.println(code);
     lcdTransient("Poll fout", String(code), 2000);
@@ -341,9 +337,7 @@ void setup() {
   digitalWrite(RELAY_PIN, LOW);
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, LOW);
-  if (!connectWifi()) {
-    rebootBoard("wifi timeout");
-  }
+  connectWifi();
   lastPollSuccessMs = millis();
   consecutivePollFailures = 0;
   lastLcdRotateMs = millis();
@@ -356,7 +350,8 @@ void loop() {
     setApiStatus("error", "wifi reconnect");
     lcdTransient("WiFi weg", "Reconnect...", 2000);
     if (!connectWifi()) {
-      rebootBoard("wifi down");
+      delay(800);
+      return;
     }
   }
 
@@ -410,13 +405,11 @@ void loop() {
     delay(250);
     watchdogReconnectCount++;
     if (!connectWifi()) {
-      rebootBoard("watchdog wifi");
+      delay(800);
+      return;
     }
     consecutivePollFailures = 0;
     lastPollSuccessMs = millis();
-    if (watchdogReconnectCount >= MAX_WATCHDOG_RECONNECTS_BEFORE_REBOOT) {
-      rebootBoard("watchdog loop");
-    }
   }
 
   if (pollHealthy) {
