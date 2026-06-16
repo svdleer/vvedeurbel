@@ -135,39 +135,33 @@ $residents = db()->query('SELECT * FROM residents ORDER BY house_number ASC, id 
     <p class="muted">Geen bewoners gevonden.</p>
 <?php else: ?>
     <div class="form">
+        <div class="muted" style="display:grid; grid-template-columns: 70px 110px 140px 1fr 1fr 110px 120px; gap: 8px; font-size: 0.82rem;">
+            <span>ID</span>
+            <span>Huisnr</span>
+            <span>Kanaal</span>
+            <span>Telegram chat ID</span>
+            <span>Telefoon (+316...)</span>
+            <span>Opslaan</span>
+            <span>Verwijder</span>
+        </div>
         <?php foreach ($residents as $resident): ?>
-            <form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 12px;">
+            <form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 10px; display:grid; grid-template-columns: 70px 110px 140px 1fr 1fr 110px 120px; gap: 8px; align-items: center;">
                 <input type="hidden" name="resident_id" value="<?= (int) $resident['id']; ?>">
-                <input type="hidden" name="action" value="update_resident">
-
                 <strong>#<?= (int) $resident['id']; ?></strong>
 
-                <label>Huisnummer
-                    <input type="number" name="house_number" required min="117" max="156" step="1" value="<?= htmlspecialchars((string) $resident['house_number']); ?>">
-                </label>
+                <input type="number" name="house_number" required min="117" max="156" step="1" value="<?= htmlspecialchars((string) $resident['house_number']); ?>">
 
-                <label>Kanaal
-                    <select name="notification_channel" required>
-                        <option value="telegram" <?= (string) $resident['notification_channel'] === 'telegram' ? 'selected' : ''; ?>>Telegram</option>
-                        <option value="sms" <?= (string) $resident['notification_channel'] === 'sms' ? 'selected' : ''; ?>>SMS</option>
-                    </select>
-                </label>
+                <select name="notification_channel" required>
+                    <option value="telegram" <?= (string) $resident['notification_channel'] === 'telegram' ? 'selected' : ''; ?>>Telegram</option>
+                    <option value="sms" <?= (string) $resident['notification_channel'] === 'sms' ? 'selected' : ''; ?>>SMS</option>
+                </select>
 
-                <label>Telegram chat ID
-                    <input type="text" name="telegram_chat_id" value="<?= htmlspecialchars((string) ($resident['telegram_chat_id'] ?? '')); ?>">
-                </label>
+                <input type="text" name="telegram_chat_id" value="<?= htmlspecialchars((string) ($resident['telegram_chat_id'] ?? '')); ?>" placeholder="Telegram chat ID">
 
-                <label>Telefoonnummer (+316...)
-                    <input type="text" name="phone_number" value="<?= htmlspecialchars((string) ($resident['phone_number'] ?? '')); ?>">
-                </label>
+                <input type="text" name="phone_number" value="<?= htmlspecialchars((string) ($resident['phone_number'] ?? '')); ?>" placeholder="+316...">
 
-                <button type="submit">Opslaan</button>
-            </form>
-
-            <form method="post" class="form" onsubmit="return confirm('Weet je zeker dat je deze bewoner wilt verwijderen?');">
-                <input type="hidden" name="resident_id" value="<?= (int) $resident['id']; ?>">
-                <input type="hidden" name="action" value="delete_resident">
-                <button type="submit">Verwijderen</button>
+                <button type="submit" name="action" value="update_resident">Opslaan</button>
+                <button type="submit" name="action" value="delete_resident" formnovalidate onclick="return confirm('Weet je zeker dat je deze bewoner wilt verwijderen?');">Verwijderen</button>
             </form>
         <?php endforeach; ?>
     </div>
