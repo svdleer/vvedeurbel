@@ -30,10 +30,11 @@ unsigned long lastPollMs = 0;
 const unsigned long POLL_INTERVAL_MS = 4000;
 unsigned long lastPollSuccessMs = 0;
 int consecutivePollFailures = 0;
-const int MAX_POLL_FAILURES_BEFORE_RECONNECT = 20;
+const int MAX_POLL_FAILURES_BEFORE_RECONNECT = 60;
 const unsigned long MAX_POLL_STALE_MS = 180000;
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 45000;
 int watchdogReconnectCount = 0;
+const bool ENABLE_WATCHDOG = false;
 unsigned long lastLcdRotateMs = 0;
 const unsigned long LCD_ROTATE_INTERVAL_MS = 5000;
 int lcdPage = 0;
@@ -275,7 +276,7 @@ bool pollCommand(int &commandId, char *token, size_t tokenSize, int &pulseMs, bo
   if (code != 200) {
     String errorBody = http.responseBody();
     http.stop();
-    pollHealthy = true;
+    pollHealthy = false;
     Serial.print("poll status: ");
     Serial.println(code);
     char codeMsg[16];
@@ -451,25 +452,34 @@ void setup() {
   consecutivePollFailures = 0;
   lastLcdRotateMs = millis();
   renderSummaryLcd();
+  if (ENABLE_WATCHDOG) {
 #if defined(WDTO_8S)
-  wdt_enable(WDTO_8S);
+    wdt_enable(WDTO_8S);
 #elif defined(WDTO_4S)
-  wdt_enable(WDTO_4S);
+    wdt_enable(WDTO_4S);
 #elif defined(WDTO_2S)
-  wdt_enable(WDTO_2S);
+    wdt_enable(WDTO_2S);
 #else
-  wdt_enable(WDTO_1S);
+    wdt_enable(WDTO_1S);
 #endif
+  }
 }
 
 void loop() {
-  wdt_reset();
+  if (ENABLE_WATCHDOG) {
+    wdt_reset();
+  }
   updateRelayState();
 
   if (!isWifiHealthy()) {
     Serial.println("WiFi disconnected, reconnecting...");
     setApiStatusC("error", "wifi reconnect");
     lcdTransientC("WiFi weg", "Reconnect...", 2000);
+    Serial.println("WATCHDOG RECONNECT");
+    Serial.print("Failures: ");
+    Serial.println(consecutivePollFailures);
+    Serial.print("Last success age: ");
+    Serial.println(millis() - lastPollSuccessMs);
     sslClient.stop();
     WiFi.disconnect();
     delay(500);
@@ -485,7 +495,7 @@ void loop() {
     return;
   }
 
-  lastPollMs = now;
+  lastPollMs += POLL_INTERVAL_MS; if (lastPollMs == 0 || lastPollMs > now) lastPollMs = now;
 
   int commandId = 0;
   int pulseMs = 1200;
@@ -554,6 +564,11 @@ void loop() {
     Serial.println("Poll watchdog: forcing WiFi reconnect...");
     setApiStatusC("error", "poll watchdog");
     lcdTransientC("Netwerk reset", "Watchdog", 1500);
+    Serial.println("WATCHDOG RECONNECT");
+    Serial.print("Failures: ");
+    Serial.println(consecutivePollFailures);
+    Serial.print("Last success age: ");
+    Serial.println(millis() - lastPollSuccessMs);
     sslClient.stop();
     WiFi.disconnect();
     delay(250);
