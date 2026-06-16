@@ -463,7 +463,15 @@ void setup() {
   consecutivePollFailures = 0;
   lastLcdRotateMs = millis();
   renderSummaryLcd();
+#if defined(WDTO_8S)
   wdt_enable(WDTO_8S);
+#elif defined(WDTO_4S)
+  wdt_enable(WDTO_4S);
+#elif defined(WDTO_2S)
+  wdt_enable(WDTO_2S);
+#else
+  wdt_enable(WDTO_1S);
+#endif
 }
 
 void loop() {
