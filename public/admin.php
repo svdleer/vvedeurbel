@@ -141,12 +141,45 @@ if (!$isAdmin):
 endif;
 
 $residents = db()->query('SELECT * FROM residents ORDER BY house_number ASC, id DESC')->fetchAll();
+
+$pdo = db();
+$pdo->exec("CREATE TABLE IF NOT EXISTS device_heartbeats (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    device_name VARCHAR(64) NOT NULL,
+    last_seen_at DATETIME NOT NULL,
+    last_ip VARCHAR(64) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_device_name (device_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$arduinoStmt = $pdo->prepare('SELECT device_name, last_seen_at, last_ip FROM device_heartbeats WHERE device_name = :device_name LIMIT 1');
+$arduinoStmt->execute(['device_name' => 'main-doorbell']);
+$arduino = $arduinoStmt->fetch();
+
+$arduinoOnline = false;
+$arduinoLastSeenText = 'nooit';
+$arduinoIp = '-';
+if ($arduino) {
+    $lastSeenTs = strtotime((string) $arduino['last_seen_at']);
+    $arduinoOnline = $lastSeenTs !== false && (time() - $lastSeenTs) <= 60;
+    $arduinoLastSeenText = (string) $arduino['last_seen_at'];
+    $arduinoIp = (string) ($arduino['last_ip'] ?? '-') ?: '-';
+}
 ?>
 
 <form method="post" class="form">
     <input type="hidden" name="action" value="admin_logout">
     <button type="submit">Uitloggen admin</button>
 </form>
+
+<h2>Arduino status</h2>
+<div class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 12px; gap: 6px;">
+    <div><strong>Status:</strong> <?= $arduinoOnline ? 'Online' : 'Offline'; ?></div>
+    <div><strong>Laatst gezien:</strong> <?= htmlspecialchars($arduinoLastSeenText); ?></div>
+    <div><strong>Laatste IP:</strong> <?= htmlspecialchars($arduinoIp); ?></div>
+    <div class="muted" style="font-size: 0.85rem;">Status is online als heartbeat binnen 60 seconden is ontvangen.</div>
+</div>
 
 <h2>Bewoners</h2>
 <?php if (empty($residents)): ?>
