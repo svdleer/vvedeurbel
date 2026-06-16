@@ -2,6 +2,7 @@
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
 #include <LiquidCrystal.h>
+#include <avr/wdt.h>
 
 // UNO WiFi Rev2 instellingen
 const char* WIFI_SSID = "DeurbelZV";
@@ -45,19 +46,21 @@ bool relayFinishedEvent = false;
 
 bool pendingAck = false;
 int pendingAckCommandId = 0;
-String pendingAckToken = "";
-String pendingAckLabel = "";
+char pendingAckToken[96] = "";
+char pendingAckLabel[24] = "";
+unsigned long lastAckAttemptMs = 0;
+const unsigned long ACK_RETRY_INTERVAL_MS = 5000;
 
 WiFiSSLClient sslClient;
 LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 
-String apiStatus = "init";
-String apiMessage = "startup";
+char apiStatus[16] = "init";
+char apiMessage[24] = "startup";
 unsigned long apiTs = 0;
 
-String lastCommand = "none";
-String lastCommandStatus = "idle";
-String lastCommandError = "";
+char lastCommand[24] = "none";
+char lastCommandStatus[24] = "idle";
+char lastCommandError[40] = "";
 unsigned long lastCommandTs = 0;
 
 String ipToString(const IPAddress &ip) {
@@ -90,15 +93,15 @@ String uptimeTs() {
 }
 
 void setApiStatus(const String &status, const String &message) {
-  apiStatus = status;
-  apiMessage = message;
+  status.toCharArray(apiStatus, sizeof(apiStatus));
+  message.toCharArray(apiMessage, sizeof(apiMessage));
   apiTs = millis();
 }
 
 void setLastCommand(const String &command, const String &status, const String &errorMsg) {
-  lastCommand = command;
-  lastCommandStatus = status;
-  lastCommandError = errorMsg;
+  command.toCharArray(lastCommand, sizeof(lastCommand));
+  status.toCharArray(lastCommandStatus, sizeof(lastCommandStatus));
+  errorMsg.toCharArray(lastCommandError, sizeof(lastCommandError));
   lastCommandTs = millis();
 }
 
@@ -115,7 +118,7 @@ void printRuntimeStatus() {
   Serial.print(lastCommand);
   Serial.print("/");
   Serial.print(lastCommandStatus);
-  if (lastCommandError.length() > 0) {
+  if (lastCommandError[0] != '\0') {
     Serial.print("/");
     Serial.print(lastCommandError);
   }
@@ -130,12 +133,12 @@ void printRuntimeStatus() {
 
 void renderSummaryLcd() {
   if (lcdPage == 0) {
-    lcdStatus("API: " + apiStatus, apiMessage);
+    lcdStatus(String("API: ") + String(apiStatus), String(apiMessage));
   } else if (lcdPage == 1) {
-    String line1 = "CMD:" + lastCommand;
-    String line2 = lastCommandStatus;
-    if (lastCommandError.length() > 0) {
-      line2 = "ERR:" + lastCommandError;
+    String line1 = String("CMD:") + String(lastCommand);
+    String line2 = String(lastCommandStatus);
+    if (lastCommandError[0] != '\0') {
+      line2 = String("ERR:") + String(lastCommandError);
     }
     lcdStatus(line1, line2);
   } else {
@@ -171,6 +174,30 @@ void printWifiStatus() {
   }
 }
 
+void prepareHttpClient() {
+  // Reset stale TLS sockets before starting a new request.
+  sslClient.stop();
+  delay(30);
+}
+
+bool isWifiHealthy() {
+  if (WiFi.status() != WL_CONNECTED) {
+    return false;
+  }
+
+  long rssi = WiFi.RSSI();
+  if (rssi < -90) {
+    return false;
+  }
+
+  IPAddress testIp;
+  if (!WiFi.hostByName(API_HOST, testIp)) {
+    return false;
+  }
+
+  return true;
+}
+
 bool connectWifi() {
   lcdTransient("WiFi verbinden", WIFI_SSID, 2000);
   Serial.print("Connecting to WiFi");
@@ -202,6 +229,7 @@ bool connectWifi() {
 
 bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy) {
   pollHealthy = false;
+  prepareHttpClient();
   HttpClient http(sslClient, API_HOST, API_PORT);
   String path = String(API_BASE_PATH) + "/device_poll.php";
 
@@ -220,7 +248,9 @@ bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy)
     http.stop();
     Serial.print("poll transport error: ");
     Serial.println(code);
-    setApiStatus("error", "net " + String(code));
+    char netMsg[24];
+    snprintf(netMsg, sizeof(netMsg), "net %d", code);
+    setApiStatus("error", String(netMsg));
     printRuntimeStatus();
     return false;
   }
@@ -278,6 +308,7 @@ bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy)
 }
 
 bool ackCommand(int commandId, const String &token, String &ackError) {
+  prepareHttpClient();
   HttpClient http(sslClient, API_HOST, API_PORT);
   String path = String(API_BASE_PATH) + "/device_ack.php";
 
@@ -313,8 +344,12 @@ bool ackCommand(int commandId, const String &token, String &ackError) {
     setApiStatus("ok", "ack 200");
     ackError = "";
   } else {
-    setApiStatus("error", "ack " + String(code));
-    ackError = "http" + String(code);
+    char ackMsg[24];
+    snprintf(ackMsg, sizeof(ackMsg), "ack %d", code);
+    setApiStatus("error", String(ackMsg));
+    char ackErrBuf[40];
+    snprintf(ackErrBuf, sizeof(ackErrBuf), "http%d", code);
+    ackError = String(ackErrBuf);
     if (body.length() > 0) {
       ackError += ":" + body.substring(0, 10);
     }
@@ -356,6 +391,7 @@ void updateRelayState() {
 }
 
 void setup() {
+  wdt_disable();
   Serial.begin(115200);
   unsigned long serialWaitStart = millis();
   while (!Serial && millis() - serialWaitStart < 3000) {
@@ -376,15 +412,20 @@ void setup() {
   consecutivePollFailures = 0;
   lastLcdRotateMs = millis();
   renderSummaryLcd();
+  wdt_enable(WDTO_8S);
 }
 
 void loop() {
+  wdt_reset();
   updateRelayState();
 
-  if (WiFi.status() != WL_CONNECTED) {
+  if (!isWifiHealthy()) {
     Serial.println("WiFi disconnected, reconnecting...");
     setApiStatus("error", "wifi reconnect");
     lcdTransient("WiFi weg", "Reconnect...", 2000);
+    sslClient.stop();
+    WiFi.disconnect();
+    delay(500);
     if (!connectWifi()) {
       delay(800);
       return;
@@ -418,8 +459,8 @@ void loop() {
       startRelayPulse();
       pendingAck = true;
       pendingAckCommandId = commandId;
-      pendingAckToken = token;
-      pendingAckLabel = String(commandId);
+      token.toCharArray(pendingAckToken, sizeof(pendingAckToken));
+      snprintf(pendingAckLabel, sizeof(pendingAckLabel), "%d", commandId);
     } else {
       Serial.println("Relay busy; skipping duplicate command until current cycle finishes");
       setLastCommand(String(commandId), "busy", "relay active");
@@ -427,23 +468,24 @@ void loop() {
     printRuntimeStatus();
   }
 
-  if (relayFinishedEvent && pendingAck) {
+  if (pendingAck && !relayActive && (relayFinishedEvent || millis() - lastAckAttemptMs >= ACK_RETRY_INTERVAL_MS)) {
     relayFinishedEvent = false;
+    lastAckAttemptMs = millis();
     String ackError = "";
-    bool ackOk = ackCommand(pendingAckCommandId, pendingAckToken, ackError);
+    bool ackOk = ackCommand(pendingAckCommandId, String(pendingAckToken), ackError);
     if (ackOk) {
-      setLastCommand(pendingAckLabel, "acked", "");
+      setLastCommand(String(pendingAckLabel), "acked", "");
+      pendingAck = false;
+      pendingAckCommandId = 0;
+      pendingAckToken[0] = '\0';
+      pendingAckLabel[0] = '\0';
+      // Reset watchdog timers so ACK latency doesn't trigger reconnect.
+      lastPollSuccessMs = millis();
+      consecutivePollFailures = 0;
+      lastPollMs = millis() - POLL_INTERVAL_MS;
     } else {
-      setLastCommand(pendingAckLabel, "ack_error", ackError.length() > 0 ? ackError : "api");
+      setLastCommand(String(pendingAckLabel), "ack_error", ackError.length() > 0 ? ackError : "api");
     }
-    pendingAck = false;
-    pendingAckCommandId = 0;
-    pendingAckToken = "";
-    pendingAckLabel = "";
-    // Reset watchdog timers so ACK latency doesn't trigger reconnect.
-    lastPollSuccessMs = millis();
-    consecutivePollFailures = 0;
-    lastPollMs = millis() - POLL_INTERVAL_MS;
     printRuntimeStatus();
     return;
   }
