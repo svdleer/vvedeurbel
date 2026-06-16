@@ -83,7 +83,36 @@ echo flash_html($message, $type);
     </div>
 
     <label data-channel="sms">Mobiel nummer
-        <input type="text" name="phone_number" placeholder="Bijv. +31612345678">
+        <div style="background: #eef8ee; border-radius: 12px; padding: 12px 14px; font-size: 0.92rem; color: #1f5a1f; margin-bottom: 10px;">
+            <strong>Stap 1:</strong> Vul je mobiele nummer in in E.164 formaat, bijvoorbeeld <strong>+31612345678</strong>.
+            <br>
+            <strong>Stap 2:</strong> Klik op <strong>SMS-code verzenden</strong> en voer daarna de ontvangen code in.
+        </div>
+
+        <input type="hidden" name="phone_number" id="sms_phone_number_field">
+        <input type="text" id="sms_phone_number_display" placeholder="Mobiel nummer (wordt bevestigd)"
+               readonly style="background: #f5f5f5; color: #555; cursor: not-allowed; display: none;">
+
+        <div id="sms-step-send">
+            <input type="tel" id="sms-phone-input" placeholder="Bijv. +31612345678" inputmode="tel">
+            <button type="button" id="sms-send-code-btn">📩 SMS-code verzenden</button>
+        </div>
+
+        <div id="sms-step-verify" style="display: none; gap: 8px;" class="form">
+            <p class="muted" style="margin: 0;">
+                Nummer <strong id="sms-detected-label"></strong> gevonden —
+                er is een 6-cijferige code via SMS verstuurd.
+            </p>
+            <input type="text" id="sms-verify-code" placeholder="6-cijferige code" maxlength="6" inputmode="numeric" style="letter-spacing: 0.3em; text-align: center; font-size: 1.3rem;">
+            <button type="button" id="sms-verify-btn">✓ SMS-code verifiëren</button>
+        </div>
+
+        <div id="sms-step-done" style="display: none;">
+            <div class="flash flash-success" style="margin: 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <span>✓ SMS nummer <strong id="sms-verified-label"></strong> geverifieerd!</span>
+                <button type="button" id="sms-reset-btn" style="width: auto; padding: 6px 14px; font-size: 0.85rem; background: rgba(0,0,0,0.08); color: inherit;">Opnieuw</button>
+            </div>
+        </div>
     </label>
 
     <label data-channel="push">Push endpoint URL

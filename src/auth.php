@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/house_number.php';
+require_once __DIR__ . '/phone_number.php';
 
 function ensure_session_started(): void
 {
@@ -61,7 +62,7 @@ function register_resident(array $input): array
     }
 
     $telegramChatId = trim((string) ($input['telegram_chat_id'] ?? ''));
-    $phoneNumber = trim((string) ($input['phone_number'] ?? ''));
+    $phoneNumber = normalize_phone_number((string) ($input['phone_number'] ?? ''));
     $pushEndpoint = trim((string) ($input['push_endpoint'] ?? ''));
 
     if ($channel === NOTIFY_CHANNEL_TELEGRAM && $telegramChatId === '') {
@@ -70,6 +71,10 @@ function register_resident(array $input): array
 
     if ($channel === NOTIFY_CHANNEL_SMS && $phoneNumber === '') {
         return ['ok' => false, 'message' => 'Telefoonnummer is verplicht voor SMS notificaties.'];
+    }
+
+    if ($channel === NOTIFY_CHANNEL_SMS && !is_valid_phone_number($phoneNumber)) {
+        return ['ok' => false, 'message' => phone_number_validation_message()];
     }
 
     if ($channel === NOTIFY_CHANNEL_PUSH && $pushEndpoint === '') {
