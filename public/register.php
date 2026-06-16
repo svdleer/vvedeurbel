@@ -94,7 +94,7 @@ echo flash_html($message, $type);
                readonly style="background: #f5f5f5; color: #555; cursor: not-allowed; display: none;">
 
         <div id="sms-step-send">
-            <input type="tel" id="sms-phone-input" placeholder="Bijv. +31612345678" inputmode="tel">
+            <input type="tel" id="sms-phone-input" placeholder="Bijv. 06..., +316..., 00316..." inputmode="tel">
             <button type="button" id="sms-send-code-btn">📩 SMS-code verzenden</button>
         </div>
 

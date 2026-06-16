@@ -157,8 +157,8 @@ if (resetBtn) {
 if (smsSendBtn) {
     smsSendBtn.addEventListener('click', async () => {
         const phone = (smsPhoneInput?.value || '').trim();
-        if (!/^\+\d{8,15}$/.test(phone)) {
-            alert('Gebruik E.164 formaat, bijvoorbeeld +31612345678.');
+        if (!phone) {
+            alert('Voer een mobiel nummer in.');
             return;
         }
 
@@ -174,13 +174,14 @@ if (smsSendBtn) {
             const data = await res.json();
 
             if (!data.ok) {
-                alert('Fout: ' + (data.error || 'Onbekende fout'));
+                const extra = data.twilio?.code ? ` (Twilio code ${data.twilio.code})` : '';
+                alert('Fout: ' + (data.error || 'Onbekende fout') + extra);
                 smsSendBtn.disabled = false;
                 smsSendBtn.textContent = '📩 SMS-code verzenden';
                 return;
             }
 
-            detectedSmsPhone = phone;
+            detectedSmsPhone = data.phone_number || phone;
             smsDetectedLabel.textContent = phone;
             smsStepSend.style.display = 'none';
             smsStepVerify.style.display = 'block';

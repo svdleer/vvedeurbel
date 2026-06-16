@@ -59,14 +59,23 @@ try {
     $smsResult = send_sms_twilio($phoneNumber, "Jouw verificatiecode is {$code}. Deze code is 5 minuten geldig.");
     if (!($smsResult['ok'] ?? false)) {
         http_response_code(502);
-        echo json_encode(['ok' => false, 'error' => 'SMS fout: ' . (($smsResult['error'] ?? null) ?: 'Onbekende fout')]);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'SMS fout: ' . (($smsResult['error'] ?? null) ?: 'Onbekende fout'),
+            'twilio' => $smsResult['twilio'] ?? null,
+        ]);
         exit;
     }
 
     $pdo->prepare('INSERT INTO sms_verifications (phone_number, code, expires_at) VALUES (:phone_number, :code, :expires_at)')
         ->execute(['phone_number' => $phoneNumber, 'code' => $code, 'expires_at' => $expiresAt]);
 
-    echo json_encode(['ok' => true, 'message' => 'Code verstuurd naar SMS nummer ' . $phoneNumber]);
+    echo json_encode([
+        'ok' => true,
+        'message' => 'Code verstuurd naar SMS nummer ' . $phoneNumber,
+        'phone_number' => $phoneNumber,
+        'twilio' => $smsResult['twilio'] ?? null,
+    ]);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'Server fout: ' . $e->getMessage()]);

@@ -77,10 +77,34 @@ function send_sms_twilio(string $to, string $message): array
     curl_close($ch);
 
     if ($response === false) {
-        return ['ok' => false, 'error' => $error !== '' ? $error : 'Onbekende Twilio fout'];
+        return [
+            'ok' => false,
+            'error' => $error !== '' ? $error : 'Onbekende Twilio fout',
+            'twilio' => [
+                'http_status' => $httpCode,
+            ],
+        ];
     }
 
-    return ['ok' => $httpCode >= 200 && $httpCode < 300, 'status' => $httpCode, 'body' => $response];
+    $decoded = json_decode((string) $response, true);
+    $twilioInfo = [
+        'http_status' => $httpCode,
+        'raw_body' => $response,
+    ];
+
+    if (is_array($decoded)) {
+        $twilioInfo['sid'] = $decoded['sid'] ?? null;
+        $twilioInfo['code'] = $decoded['code'] ?? null;
+        $twilioInfo['message'] = $decoded['message'] ?? null;
+        $twilioInfo['status'] = $decoded['status'] ?? null;
+    }
+
+    return [
+        'ok' => $httpCode >= 200 && $httpCode < 300,
+        'status' => $httpCode,
+        'body' => $response,
+        'twilio' => $twilioInfo,
+    ];
 }
 
 function send_push_webhook(string $endpoint, string $message, string $openUrl): array
