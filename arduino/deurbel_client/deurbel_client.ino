@@ -207,21 +207,9 @@ void prepareHttpClient() {
 }
 
 bool isWifiHealthy() {
-  if (WiFi.status() != WL_CONNECTED) {
-    return false;
-  }
-
-  long rssi = WiFi.RSSI();
-  if (rssi < -90) {
-    return false;
-  }
-
-  IPAddress testIp;
-  if (!WiFi.hostByName(API_HOST, testIp)) {
-    return false;
-  }
-
-  return true;
+  // Keep this check lightweight to avoid reconnect flapping.
+  // API reachability is handled by the poll watchdog below.
+  return WiFi.status() == WL_CONNECTED;
 }
 
 bool connectWifi() {
