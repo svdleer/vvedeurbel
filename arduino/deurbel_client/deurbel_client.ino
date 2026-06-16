@@ -14,6 +14,8 @@ const char* DEVICE_KEY = "Quaf-AT_SIGN-slyp-Cact-FIV";
 const int RELAY_PIN = 2;
 const int RELAY_PULSE_MS = 3000;
 const unsigned long RELAY_SAFETY_REFRESH_MS = 5000;
+const int RELAY_ACTIVE_STATE = LOW;
+const int RELAY_INACTIVE_STATE = HIGH;
 const int STATUS_LED_PIN = LED_BUILTIN;
 // Parallel LCD pins (pas aan naar jouw bedrading)
 const int LCD_RS = 8;
@@ -329,7 +331,7 @@ void startRelayPulse() {
   setLastCommand("open", "running", "");
   printRuntimeStatus();
   lcdTransient("Deur openen", String(RELAY_PULSE_MS) + "ms", RELAY_PULSE_MS + 400);
-  digitalWrite(RELAY_PIN, HIGH);
+  digitalWrite(RELAY_PIN, RELAY_ACTIVE_STATE);
   relayActive = true;
   relayOffAtMs = millis() + RELAY_PULSE_MS;
   relayFinishedEvent = false;
@@ -338,7 +340,7 @@ void startRelayPulse() {
 void updateRelayState() {
   if (relayActive && millis() >= relayOffAtMs) {
     pinMode(RELAY_PIN, OUTPUT);
-    digitalWrite(RELAY_PIN, LOW);
+    digitalWrite(RELAY_PIN, RELAY_INACTIVE_STATE);
     relayActive = false;
     relayFinishedEvent = true;
     Serial.println("Relay pulse done");
@@ -348,7 +350,7 @@ void updateRelayState() {
   // Keep relay pin in a known safe state while idle.
   if (!relayActive && millis() - lastRelaySafetyMs >= RELAY_SAFETY_REFRESH_MS) {
     pinMode(RELAY_PIN, OUTPUT);
-    digitalWrite(RELAY_PIN, LOW);
+    digitalWrite(RELAY_PIN, RELAY_INACTIVE_STATE);
     lastRelaySafetyMs = millis();
   }
 }
@@ -365,7 +367,7 @@ void setup() {
   lcdTransient("Deurbel client", "Opstarten...", 2000);
 
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, RELAY_INACTIVE_STATE);
   lastRelaySafetyMs = millis();
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, LOW);
