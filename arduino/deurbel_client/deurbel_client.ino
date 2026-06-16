@@ -23,6 +23,10 @@ const int LCD_D7 = 7;
 
 unsigned long lastPollMs = 0;
 const unsigned long POLL_INTERVAL_MS = 1500;
+unsigned long lastPollSuccessMs = 0;
+int consecutivePollFailures = 0;
+const int MAX_POLL_FAILURES_BEFORE_RECONNECT = 8;
+const unsigned long MAX_POLL_STALE_MS = 45000;
 unsigned long lastLcdRotateMs = 0;
 bool lcdShowApi = true;
 unsigned long lcdTransientUntilMs = 0;
@@ -160,7 +164,8 @@ void connectWifi() {
   printWifiStatus();
 }
 
-bool pollCommand(int &commandId, String &token, int &pulseMs) {
+bool pollCommand(int &commandId, String &token, int &pulseMs, bool &pollHealthy) {
+  pollHealthy = false;
   HttpClient http(sslClient, API_HOST, API_PORT);
   String path = String(API_BASE_PATH) + "/device_poll.php";
 
@@ -209,6 +214,8 @@ bool pollCommand(int &commandId, String &token, int &pulseMs) {
     printRuntimeStatus();
     return false;
   }
+
+  pollHealthy = true;
 
   bool hasCommand = doc["has_command"] | false;
   if (!hasCommand) {
@@ -299,6 +306,8 @@ void setup() {
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, LOW);
   connectWifi();
+  lastPollSuccessMs = millis();
+  consecutivePollFailures = 0;
   lastLcdRotateMs = millis();
   renderSummaryLcd();
 }
@@ -322,10 +331,11 @@ void loop() {
   int commandId = 0;
   int pulseMs = 1200;
   String token = "";
+  bool pollHealthy = false;
 
   Serial.println("poll tick");
 
-  if (pollCommand(commandId, token, pulseMs)) {
+  if (pollCommand(commandId, token, pulseMs, pollHealthy)) {
     Serial.print("Command received: ");
     Serial.println(commandId);
     setLastCommand(String(commandId), "received", "");
@@ -340,6 +350,27 @@ void loop() {
       setLastCommand(String(commandId), "ack_error", ackError.length() > 0 ? ackError : "api");
     }
     printRuntimeStatus();
+  }
+
+  if (pollHealthy) {
+    consecutivePollFailures = 0;
+    lastPollSuccessMs = millis();
+  } else {
+    consecutivePollFailures++;
+  }
+
+  unsigned long nowMs = millis();
+  if (consecutivePollFailures >= MAX_POLL_FAILURES_BEFORE_RECONNECT ||
+      nowMs - lastPollSuccessMs > MAX_POLL_STALE_MS) {
+    Serial.println("Poll watchdog: forcing WiFi reconnect...");
+    setApiStatus("error", "poll watchdog");
+    lcdTransient("Netwerk reset", "Watchdog", 1500);
+    sslClient.stop();
+    WiFi.disconnect();
+    delay(250);
+    connectWifi();
+    consecutivePollFailures = 0;
+    lastPollSuccessMs = millis();
   }
 
   if (millis() > lcdTransientUntilMs && millis() - lastLcdRotateMs > 2500) {
