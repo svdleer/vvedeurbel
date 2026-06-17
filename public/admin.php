@@ -264,6 +264,20 @@ $arduinoStmt = $pdo->prepare('SELECT device_name, last_seen_at, last_ip FROM dev
 $arduinoStmt->execute(['device_name' => 'main-doorbell']);
 $arduino = $arduinoStmt->fetch();
 
+// Audit log pagination
+$auditPage = max(1, (int) ($_GET['audit_page'] ?? 1));
+$auditPerPage = 10;
+$auditOffset = ($auditPage - 1) * $auditPerPage;
+
+$countStmt = $pdo->query("SELECT COUNT(*) AS total FROM open_commands");
+$countResult = $countStmt->fetch();
+$auditTotalRows = (int) $countResult['total'];
+$auditTotalPages = max(1, (int) ceil($auditTotalRows / $auditPerPage));
+if ($auditPage > $auditTotalPages) {
+    $auditPage = $auditTotalPages;
+    $auditOffset = ($auditPage - 1) * $auditPerPage;
+}
+
 $openAuditStmt = $pdo->query(
     "SELECT
         oc.id AS command_id,
@@ -278,7 +292,7 @@ $openAuditStmt = $pdo->query(
      FROM open_commands oc
      JOIN ring_events re ON re.id = oc.ring_event_id
      ORDER BY oc.id DESC
-     LIMIT 100"
+     LIMIT " . $auditPerPage . " OFFSET " . $auditOffset
 );
 $openAuditRows = $openAuditStmt->fetchAll();
 
@@ -336,6 +350,23 @@ if ($arduino) {
             </div>
         <?php endforeach; ?>
     </div>
+    
+    <?php if ($auditTotalRows > $auditPerPage): ?>
+        <div class="form" style="display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 12px;">
+            <?php if ($auditPage > 1): ?>
+                <a href="?audit_page=<?= (int) ($auditPage - 1); ?>" class="btn">← Vorige</a>
+            <?php endif; ?>
+            
+            <span class="muted" style="font-size: 0.85rem;">
+                Pagina <?= (int) $auditPage; ?> van <?= (int) $auditTotalPages; ?> 
+                (<?= (int) $auditTotalRows; ?> totaal)
+            </span>
+            
+            <?php if ($auditPage < $auditTotalPages): ?>
+                <a href="?audit_page=<?= (int) ($auditPage + 1); ?>" class="btn">Volgende →</a>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
 <?php endif; ?>
 
 <h2>Gebruiker toevoegen</h2>
