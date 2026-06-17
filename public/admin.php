@@ -195,6 +195,27 @@ echo flash_html($message, $type);
 echo '<style>
     section.card { max-width: 100% !important; width: 95vw !important; }
     main.page { padding: 24px 12px !important; }
+    .resident-grid {
+        display: grid;
+        grid-template-columns: 60px 90px 120px minmax(160px, 1.2fr) minmax(160px, 1.2fr) 90px 90px 110px 110px;
+        gap: 10px;
+        align-items: center;
+        min-width: 1050px;
+    }
+    .resident-grid-header {
+        font-size: 0.75rem;
+    }
+    .resident-grid-row {
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        padding: 10px;
+    }
+    .resident-grid-row input,
+    .resident-grid-row select,
+    .resident-grid-row button {
+        width: 100%;
+        box-sizing: border-box;
+    }
 </style>';
 
 if (!$isAdmin):
@@ -228,6 +249,24 @@ $arduinoStmt = $pdo->prepare('SELECT device_name, last_seen_at, last_ip FROM dev
 $arduinoStmt->execute(['device_name' => 'main-doorbell']);
 $arduino = $arduinoStmt->fetch();
 
+$openAuditStmt = $pdo->query(
+    "SELECT
+        oc.id AS command_id,
+        oc.ring_event_id,
+        oc.status AS command_status,
+        oc.created_at AS command_created_at,
+        oc.sent_at,
+        oc.acked_at,
+        re.house_number,
+        re.status AS ring_status,
+        re.opened_at
+     FROM open_commands oc
+     JOIN ring_events re ON re.id = oc.ring_event_id
+     ORDER BY oc.id DESC
+     LIMIT 100"
+);
+$openAuditRows = $openAuditStmt->fetchAll();
+
 $arduinoOnline = false;
 $arduinoLastSeenText = 'nooit';
 $arduinoIp = '-';
@@ -251,6 +290,38 @@ if ($arduino) {
     <div><strong>Laatste IP:</strong> <?= htmlspecialchars($arduinoIp); ?></div>
     <div class="muted" style="font-size: 0.85rem;">Status is online als heartbeat binnen 60 seconden is ontvangen.</div>
 </div>
+
+<h2>Audit log deur-openingen</h2>
+<?php if (empty($openAuditRows)): ?>
+    <p class="muted">Nog geen deur-open opdrachten gevonden.</p>
+<?php else: ?>
+    <div class="form" style="overflow-x: auto; max-width: 100%; width: 100%;">
+        <div class="muted" style="display:grid; grid-template-columns: 80px 80px 90px 120px 160px 160px 160px 140px 160px; gap: 8px; font-size: 0.75rem; min-width: 1200px;">
+            <span>Command</span>
+            <span>Event</span>
+            <span>Huisnr</span>
+            <span>Cmd status</span>
+            <span>Aangemaakt</span>
+            <span>Verzonden</span>
+            <span>ACK</span>
+            <span>Event status</span>
+            <span>Open tijd</span>
+        </div>
+        <?php foreach ($openAuditRows as $row): ?>
+            <div class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 10px; display:grid; grid-template-columns: 80px 80px 90px 120px 160px 160px 160px 140px 160px; gap: 8px; align-items: center; min-width: 1200px;">
+                <span>#<?= (int) $row['command_id']; ?></span>
+                <span>#<?= (int) $row['ring_event_id']; ?></span>
+                <span><?= htmlspecialchars((string) $row['house_number']); ?></span>
+                <span><?= htmlspecialchars((string) $row['command_status']); ?></span>
+                <span><?= htmlspecialchars((string) $row['command_created_at']); ?></span>
+                <span><?= htmlspecialchars((string) ($row['sent_at'] ?? '-')); ?></span>
+                <span><?= htmlspecialchars((string) ($row['acked_at'] ?? '-')); ?></span>
+                <span><?= htmlspecialchars((string) $row['ring_status']); ?></span>
+                <span><?= htmlspecialchars((string) ($row['opened_at'] ?? '-')); ?></span>
+            </div>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
 
 <h2>Gebruiker toevoegen</h2>
 <form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 12px;">
@@ -301,7 +372,7 @@ if ($arduino) {
     <p class="muted">Geen bewoners gevonden.</p>
 <?php else: ?>
     <div class="form" style="overflow-x: auto; max-width: 100%; width: 100%;">
-        <div class="muted" style="display:grid; grid-template-columns: 60px 100px 110px 200px 200px 80px 80px 100px 100px; gap: 8px; font-size: 0.75rem; min-width: 1100px;">
+        <div class="muted resident-grid resident-grid-header">
             <span>ID</span>
             <span>Huisnr</span>
             <span>Kanaal</span>
@@ -313,7 +384,7 @@ if ($arduino) {
             <span>Verwijder</span>
         </div>
         <?php foreach ($residents as $resident): ?>
-            <form method="post" class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 10px; display:grid; grid-template-columns: 60px 100px 110px 200px 200px 80px 80px 100px 100px; gap: 8px; align-items: center; min-width: 1100px;">
+            <form method="post" class="form resident-grid resident-grid-row">
                 <input type="hidden" name="resident_id" value="<?= (int) $resident['id']; ?>">
                 <strong style="font-size: 0.9rem;">#<?= (int) $resident['id']; ?></strong>
 
