@@ -35,11 +35,16 @@ const unsigned long MAX_POLL_STALE_MS = 180000;
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 45000;
 int watchdogReconnectCount = 0;
 const bool ENABLE_WATCHDOG = false;
+const int POLL_TRANSPORT_RETRIES = 2;
+const unsigned long POLL_RETRY_DELAY_MS = 250;
+const bool ENABLE_PERIODIC_REBOOT = true;
+const unsigned long PERIODIC_REBOOT_MS = 15UL * 60UL * 1000UL;
 unsigned long lastLcdRotateMs = 0;
 const unsigned long LCD_ROTATE_INTERVAL_MS = 5000;
 int lcdPage = 0;
 unsigned long lcdTransientUntilMs = 0;
 unsigned long lastRelaySafetyMs = 0;
+unsigned long bootMs = 0;
 
 bool relayActive = false;
 unsigned long relayOffAtMs = 0;
@@ -207,6 +212,18 @@ void prepareHttpClient() {
   delay(30);
 }
 
+void triggerSafetyReset(const char *reason) {
+  Serial.print("Safety reset: ");
+  Serial.println(reason);
+  setApiStatusC("error", "safety reset");
+  lcdTransientC("Safety reset", reason, 1200);
+  delay(1200);
+  wdt_enable(WDTO_1S);
+  while (true) {
+    // Wait for watchdog reset.
+  }
+}
+
 bool isWifiHealthy() {
   // Keep this check lightweight to avoid reconnect flapping.
   // API reachability is handled by the poll watchdog below.
@@ -246,36 +263,50 @@ bool connectWifi() {
 
 bool pollCommand(int &commandId, char *token, size_t tokenSize, int &pulseMs, bool &pollHealthy) {
   pollHealthy = false;
-  prepareHttpClient();
-  HttpClient http(sslClient, API_HOST, API_PORT);
   char path[48];
   snprintf(path, sizeof(path), "%s/device_poll.php", API_BASE_PATH);
 
-  Serial.print("Polling: https://");
-  Serial.print(API_HOST);
-  Serial.print(path);
-  Serial.println();
+  int code = 0;
+  String body;
+  for (int attempt = 0; attempt <= POLL_TRANSPORT_RETRIES; attempt++) {
+    prepareHttpClient();
+    HttpClient http(sslClient, API_HOST, API_PORT);
 
-  http.beginRequest();
-  http.get(path);
-  http.sendHeader("X-DEVICE-KEY", DEVICE_KEY);
-  http.endRequest();
+    Serial.print("Polling: https://");
+    Serial.print(API_HOST);
+    Serial.print(path);
+    Serial.print(" try ");
+    Serial.print(attempt + 1);
+    Serial.print("/");
+    Serial.println(POLL_TRANSPORT_RETRIES + 1);
 
-  int code = http.responseStatusCode();
-  if (code < 0) {
+    http.beginRequest();
+    http.get(path);
+    http.sendHeader("X-DEVICE-KEY", DEVICE_KEY);
+    http.endRequest();
+
+    code = http.responseStatusCode();
+    if (code < 0) {
+      http.stop();
+      Serial.print("poll transport error: ");
+      Serial.println(code);
+      if (attempt < POLL_TRANSPORT_RETRIES) {
+        delay(POLL_RETRY_DELAY_MS);
+        continue;
+      }
+      char netMsg[24];
+      snprintf(netMsg, sizeof(netMsg), "net %d", code);
+      setApiStatusC("error", netMsg);
+      printRuntimeStatus();
+      return false;
+    }
+
+    body = http.responseBody();
     http.stop();
-    Serial.print("poll transport error: ");
-    Serial.println(code);
-    char netMsg[24];
-    snprintf(netMsg, sizeof(netMsg), "net %d", code);
-    setApiStatusC("error", netMsg);
-    printRuntimeStatus();
-    return false;
+    break;
   }
 
   if (code != 200) {
-    String errorBody = http.responseBody();
-    http.stop();
     pollHealthy = false;
     Serial.print("poll status: ");
     Serial.println(code);
@@ -285,19 +316,16 @@ bool pollCommand(int &commandId, char *token, size_t tokenSize, int &pulseMs, bo
     char httpMsg[24];
     snprintf(httpMsg, sizeof(httpMsg), "HTTP %d", code);
     setApiStatusC("error", httpMsg);
-    if (errorBody.length() > 0) {
+    if (body.length() > 0) {
       Serial.print("poll body: ");
-      Serial.println(errorBody);
+      Serial.println(body);
       char shortErr[24];
-      safeCopy(shortErr, sizeof(shortErr), errorBody.c_str());
+      safeCopy(shortErr, sizeof(shortErr), body.c_str());
       setApiStatusC("error", shortErr);
     }
     printRuntimeStatus();
     return false;
   }
-
-  String body = http.responseBody();
-  http.stop();
 
   Serial.print("poll status: ");
   Serial.println(code);
@@ -448,6 +476,7 @@ void setup() {
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, LOW);
   connectWifi();
+  bootMs = millis();
   lastPollSuccessMs = millis();
   consecutivePollFailures = 0;
   lastLcdRotateMs = millis();
@@ -466,6 +495,10 @@ void setup() {
 }
 
 void loop() {
+  if (ENABLE_PERIODIC_REBOOT && millis() - bootMs >= PERIODIC_REBOOT_MS) {
+    triggerSafetyReset("15m guard");
+  }
+
   if (ENABLE_WATCHDOG) {
     wdt_reset();
   }

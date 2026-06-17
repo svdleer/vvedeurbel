@@ -9,6 +9,9 @@ RewriteRule ^admin/?$ admin.php [L,QSA,NC]
 # Friendly hidden URL: /_aanmelden_ -> /register.php
 RewriteRule ^_aanmelden_/?$ register.php [L,QSA,NC]
 
+# Friendly alias URL: /aanmelden -> /register.php
+RewriteRule ^aanmelden/?$ register.php [L,QSA,NC]
+
 # Redirect direct register.php access to hidden path
 RewriteCond %{THE_REQUEST} \s/+register\.php(?:[\s?]|$) [NC]
 RewriteRule ^register\.php$ /_aanmelden_ [R=302,L,NC]
