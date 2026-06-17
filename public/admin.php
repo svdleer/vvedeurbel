@@ -216,6 +216,21 @@ echo '<style>
         width: 100%;
         box-sizing: border-box;
     }
+    .audit-grid {
+        display: grid;
+        grid-template-columns: 80px 80px 100px 130px minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) 140px minmax(150px, 1fr);
+        gap: 10px;
+        align-items: center;
+        min-width: 1100px;
+    }
+    .audit-grid-header {
+        font-size: 0.75rem;
+    }
+    .audit-grid-row {
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        padding: 10px;
+    }
 </style>';
 
 if (!$isAdmin):
@@ -296,7 +311,7 @@ if ($arduino) {
     <p class="muted">Nog geen deur-open opdrachten gevonden.</p>
 <?php else: ?>
     <div class="form" style="overflow-x: auto; max-width: 100%; width: 100%;">
-        <div class="muted" style="display:grid; grid-template-columns: 80px 80px 90px 120px 160px 160px 160px 140px 160px; gap: 8px; font-size: 0.75rem; min-width: 1200px;">
+        <div class="muted audit-grid audit-grid-header">
             <span>Command</span>
             <span>Event</span>
             <span>Huisnr</span>
@@ -308,7 +323,7 @@ if ($arduino) {
             <span>Open tijd</span>
         </div>
         <?php foreach ($openAuditRows as $row): ?>
-            <div class="form" style="border: 1px solid #ddd; border-radius: 12px; padding: 10px; display:grid; grid-template-columns: 80px 80px 90px 120px 160px 160px 160px 140px 160px; gap: 8px; align-items: center; min-width: 1200px;">
+            <div class="audit-grid audit-grid-row">
                 <span>#<?= (int) $row['command_id']; ?></span>
                 <span>#<?= (int) $row['ring_event_id']; ?></span>
                 <span><?= htmlspecialchars((string) $row['house_number']); ?></span>
