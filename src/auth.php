@@ -3,8 +3,98 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/house_number.php';
 require_once __DIR__ . '/phone_number.php';
+
+const RESIDENT_REMEMBER_COOKIE = 'resident_auth';
+const RESIDENT_REMEMBER_TTL = 60 * 60 * 24 * 30;
+
+function resident_cookie_secret(): string
+{
+    $cfg = app_config();
+    $seed = ($cfg['admin_password'] ?? '') . '|' . ($cfg['device_api_key'] ?? '') . '|' . ($cfg['app_url'] ?? '');
+    if ($seed === '||') {
+        $seed = __FILE__;
+    }
+
+    return hash('sha256', $seed);
+}
+
+function resident_auth_cookie_value(array $resident, int $expiresAt): string
+{
+    $id = (int) ($resident['id'] ?? 0);
+    $passwordHash = (string) ($resident['password_hash'] ?? '');
+    $payload = $id . '|' . $expiresAt;
+    $signature = hash_hmac('sha256', $payload . '|' . $passwordHash, resident_cookie_secret());
+
+    return $id . ':' . $expiresAt . ':' . $signature;
+}
+
+function set_resident_auth_cookie(array $resident): void
+{
+    $expiresAt = time() + RESIDENT_REMEMBER_TTL;
+    $value = resident_auth_cookie_value($resident, $expiresAt);
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+
+    setcookie(RESIDENT_REMEMBER_COOKIE, $value, [
+        'expires' => $expiresAt,
+        'path' => '/',
+        'secure' => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
+function clear_resident_auth_cookie(): void
+{
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    setcookie(RESIDENT_REMEMBER_COOKIE, '', [
+        'expires' => time() - 3600,
+        'path' => '/',
+        'secure' => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
+function resident_from_auth_cookie(): ?array
+{
+    $raw = (string) ($_COOKIE[RESIDENT_REMEMBER_COOKIE] ?? '');
+    if ($raw === '') {
+        return null;
+    }
+
+    $parts = explode(':', $raw);
+    if (count($parts) !== 3) {
+        clear_resident_auth_cookie();
+        return null;
+    }
+
+    [$idRaw, $expiresRaw, $sig] = $parts;
+    $residentId = (int) $idRaw;
+    $expiresAt = (int) $expiresRaw;
+    if ($residentId <= 0 || $expiresAt < time() || $sig === '') {
+        clear_resident_auth_cookie();
+        return null;
+    }
+
+    $stmt = db()->prepare('SELECT * FROM residents WHERE id = :id LIMIT 1');
+    $stmt->execute(['id' => $residentId]);
+    $resident = $stmt->fetch();
+    if (!$resident) {
+        clear_resident_auth_cookie();
+        return null;
+    }
+
+    $expected = resident_auth_cookie_value($resident, $expiresAt);
+    if (!hash_equals($expected, $raw)) {
+        clear_resident_auth_cookie();
+        return null;
+    }
+
+    return $resident;
+}
 
 function ensure_session_started(): void
 {
@@ -187,6 +277,7 @@ function login_resident(string $houseNumber, string $password): array
 
     ensure_session_started();
     $_SESSION['resident_id'] = (int) $resident['id'];
+    set_resident_auth_cookie($resident);
 
     return ['ok' => true, 'resident' => $resident];
 }
@@ -195,15 +286,22 @@ function current_resident(): ?array
 {
     ensure_session_started();
     $residentId = (int) ($_SESSION['resident_id'] ?? 0);
-    if ($residentId <= 0) {
-        return null;
+    if ($residentId > 0) {
+        $stmt = db()->prepare('SELECT * FROM residents WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $residentId]);
+        $resident = $stmt->fetch();
+        if ($resident) {
+            return $resident;
+        }
     }
 
-    $stmt = db()->prepare('SELECT * FROM residents WHERE id = :id LIMIT 1');
-    $stmt->execute(['id' => $residentId]);
+    $residentFromCookie = resident_from_auth_cookie();
+    if ($residentFromCookie) {
+        $_SESSION['resident_id'] = (int) $residentFromCookie['id'];
+        return $residentFromCookie;
+    }
 
-    $resident = $stmt->fetch();
-    return $resident ?: null;
+    return null;
 }
 
 function require_resident(): array
@@ -222,4 +320,5 @@ function logout_resident(): void
     ensure_session_started();
     $_SESSION = [];
     session_destroy();
+    clear_resident_auth_cookie();
 }

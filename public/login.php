@@ -8,6 +8,10 @@ require_once __DIR__ . '/../src/house_number.php';
 
 $message = null;
 $type = 'info';
+$next = (string) ($_GET['next'] ?? $_POST['next'] ?? '/dashboard.php');
+if ($next === '' || $next[0] !== '/' || str_starts_with($next, '//')) {
+    $next = '/dashboard.php';
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $houseNumber = normalize_house_number((string) ($_POST['house_number'] ?? ''));
@@ -19,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $result = login_resident($houseNumber, $password);
         if ($result['ok']) {
-            header('Location: /dashboard.php');
+            header('Location: ' . $next);
             exit;
         }
 
@@ -32,6 +36,7 @@ render_shell_start('Bewoner login', 'Log in om meldingen en deuropening te beher
 echo flash_html($message, $type);
 ?>
 <form method="post" class="form">
+    <input type="hidden" name="next" value="<?= htmlspecialchars($next); ?>">
     <label>Huisnummer
         <input type="number" name="house_number" required min="117" max="156" step="1" inputmode="numeric" placeholder="Bijv. 117">
     </label>

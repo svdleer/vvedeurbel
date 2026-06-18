@@ -6,14 +6,14 @@ RewriteRule ^(src|migrations|scripts|data)/ - [F,L]
 # Friendly URL: /admin -> /admin.php
 RewriteRule ^admin/?$ admin.php [L,QSA,NC]
 
+# Friendly URL: /openen/<huisnummer> -> /open-house.php?house_number=<huisnummer>
+RewriteRule ^openen/([0-9]{3})/?$ open-house.php?house_number=$1 [L,QSA,NC]
+
+# Friendly URL: /<huisnummer> -> /ring-house.php?house_number=<huisnummer>
+RewriteRule ^([0-9]{3})/?$ ring-house.php?house_number=$1 [L,QSA,NC]
+
 # Friendly hidden URL: /_aanmelden_ -> /register.php
 RewriteRule ^_aanmelden_/?$ register.php [L,QSA,NC]
-
-# Friendly alias URL: /aanmelden -> /register.php
-RewriteRule ^aanmelden/?$ register.php [L,QSA,NC]
-
-# Friendly alias URL: /_aanmelden -> /register.php
-RewriteRule ^_aanmelden/?$ register.php [L,QSA,NC]
 
 # Redirect direct register.php access to hidden path
 RewriteCond %{THE_REQUEST} \s/+register\.php(?:[\s?]|$) [NC]
