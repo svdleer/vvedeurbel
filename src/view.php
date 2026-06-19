@@ -24,29 +24,23 @@ function render_head(string $title): void
 
 function render_shell_start(string $title, string $subtitle = ''): void
 {
-    render_head($title);
-    
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
-    $isAdmin = (bool) ($_SESSION['is_admin'] ?? false);
-    
-    if ($isAdmin) {
-        echo '<nav class="admin-nav">';
-        echo '<a href="/admin.php" class="admin-nav-link">Admin Beheerpagina</a>';
-        echo '</nav>';
-    }
-    
+    render_head('Systeem buiten gebruik');
+
     echo '<main class="page">';
     echo '<div class="bg-shape bg-shape-a"></div><div class="bg-shape bg-shape-b"></div>';
-    echo '<section class="card">';
+    echo '<section class="card" style="text-align:center; max-width:600px; margin:auto;">';
     echo '<header class="hero">';
-    echo '<p class="eyebrow">Tijdelijke digitale deurbel</p>';
-    echo '<h1>' . htmlspecialchars($title) . '</h1>';
-    if ($subtitle !== '') {
-        echo '<p class="subtitle">' . htmlspecialchars($subtitle) . '</p>';
-    }
+    echo '<p class="eyebrow" style="color:#c0392b; font-weight:800; font-size:1rem; letter-spacing:.08em;">⚠️ SYSTEEM BUITEN GEBRUIK</p>';
+    echo '<h1 style="font-size:1.6rem; color:#c0392b;">Systeem buiten gebruik</h1>';
+    echo '<p class="subtitle" style="font-size:1.1rem; line-height:1.6; margin-top:1rem;">';
+    echo 'Vanaf heden is dit systeem buiten gebruik.<br>';
+    echo 'Voor meer informatie zie de berichtgeving van <strong>VVE165</strong>.';
+    echo '</p>';
     echo '</header>';
+    echo '</section></main>';
+    echo '<script src="/assets/app.js"></script>';
+    echo '</body></html>';
+    exit;
 }
 
 function render_shell_end(): void
